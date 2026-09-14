@@ -5,7 +5,5 @@
 2.Raihan Anugrah Adrian Arji (Backend & Database Engineer).
 3.Andra Putranta Hendiana (Frontend & UI/UX Specialist).
 
-===== tesrt
-
 ## Deskripsi Singkat Proyek
 Platform Web Tracking Kegiatan Project Management bagi setiap perusahaan yang berfungsi mengelola tugas-tugas tiap pegawai
