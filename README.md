@@ -106,3 +106,61 @@ Proyek ini menggunakan arsitektur monorepo yang memisahkan layanan menjadi beber
 
 * **frontend/:** Antarmuka pengguna (UI) interaktif yang dibangun menggunakan React + Vite.
 * **backend/:** Core API dan logika bisnis yang dibangun menggunakan Express.js dan PostgreSQL sebagai Database nya. Mengelola auth, session, dan data.
+
+```
+PROJECT/
+│
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   │
+│   ├── workflows/
+│   │   ├── ci-frontend.yml
+│   │   └── ci-backend.yml
+│   │
+│   └── pull_request_template.md
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .env.example
+│
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middlewares/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── app.ts
+│   │
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   │
+│   ├── tests/
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .env.example
+│
+├── docs/
+│   ├── architecture_diagram.png
+│   ├── database_schema.png
+│   └── api_specifications.md
+│
+├── .gitignore
+├── LICENSE
+└── README.md
+```
