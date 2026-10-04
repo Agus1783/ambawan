@@ -164,3 +164,40 @@ PROJECT/
 ├── LICENSE
 └── README.md
 ```
+
+## Setup Proyek Environment
+
+**Prasyarat Sistem:**
+
+* Node.js versi 24 (atau bisa gunakan NVM), npm, pnpm
+  ```
+  node -v -> 24
+  npm -v
+  npm install -g pnpm
+  pnpm -v
+  ```
+* PostgreeSql (lokal / cloud)
+
+**Langkah Setup:**
+
+1. Clone Repository
+    ```
+   git clone https://github.com/Agus1783/ambawan.git
+   cd ambawan
+    ```
+
+1. Setup Frontend
+    ```
+    cd frontend
+    pnpm install
+    cp .env.example .env
+    # Buka file .env dan masukkan VITE_BASE_URL Anda
+    ```
+
+1. Setup Backend
+    ``` 
+   cd backend
+   pnpm install
+   cp .env.example .env
+   # Buka file .env dan sesuaikan kredensial koneksi DATABASE_URL (PostgreeSQL)
+    ```
