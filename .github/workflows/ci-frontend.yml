@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'frontend/**'
+      - '.github/workflows/ci-frontend.yml'
   pull_request:
     paths:
       - 'frontend/**'
+      - '.github/workflows/ci-frontend.yml'
 
 jobs:
   frontend:
@@ -14,17 +16,23 @@ jobs:
 
     defaults:
       run:
-        working-directory: client
+        working-directory: frontend
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build

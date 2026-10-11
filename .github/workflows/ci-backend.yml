@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
 
 jobs:
   backend:
@@ -14,18 +16,24 @@ jobs:
 
     defaults:
       run:
-        working-directory: server
+        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/actions-setup@v2
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: server/package-lock.json
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
 
-      - run: npm ci
-      - run: npm run lint
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: npm test
-      - run: npm run build
+      - run: npm build
