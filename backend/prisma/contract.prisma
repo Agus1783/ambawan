@@ -1,0 +1,124 @@
+// use prisma-8
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+model Roles {
+  id          VarChar(26)       @id(map: "roles_pkey")
+  name        VarChar(50)       @unique(map: "roles_name_key")
+  description String?
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+  updatedAt   TimestamptzString @default(now()) @map("updated_at")
+  users       Users[]
+
+  @@map("roles")
+}
+
+model Users {
+  id              VarChar(26)       @id(map: "users_pkey")
+  name            VarChar(100)
+  email           VarChar(255)      @unique(map: "users_email_key")
+  password        VarChar(255)
+  roleId          VarChar(26)       @map("role_id")
+  divisionId      VarChar(26)?      @map("division_id")
+  createdAt       TimestamptzString @default(now()) @map("created_at")
+  updatedAt       TimestamptzString @default(now()) @map("updated_at")
+  divisions       Divisions[]
+  taskAttachments TaskAttachments[]
+  taskHistories   TaskHistory[]
+  tasks           Tasks[]
+  division        Divisions?        @relation(fields: [divisionId], references: [id], onDelete: SetNull, map: "fk_user_division")
+  role            Roles             @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_user_role")
+
+  @@index([divisionId], map: "idx_users_division_id")
+  @@index([roleId], map: "idx_users_role_id")
+  @@map("users")
+}
+
+model Divisions {
+  id        VarChar(26)       @id(map: "divisions_pkey")
+  name      VarChar(100)      @unique(map: "divisions_name_key")
+  leaderId  VarChar(26)?      @map("leader_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt TimestamptzString @default(now()) @map("updated_at")
+  tasks     Tasks[]
+  users     Users[]
+  leader    Users?            @relation(fields: [leaderId], references: [id], onDelete: SetNull, map: "fk_division_leader", index: false)
+
+  @@map("divisions")
+}
+
+model Projects {
+  id          VarChar(26)        @id(map: "projects_pkey")
+  name        VarChar(150)
+  description String?
+  deadline    TimestamptzString?
+  createdAt   TimestamptzString  @default(now()) @map("created_at")
+  updatedAt   TimestamptzString  @default(now()) @map("updated_at")
+  tasks       Tasks[]
+
+  @@map("projects")
+}
+
+model Tasks {
+  id              VarChar(26)        @id(map: "tasks_pkey")
+  projectId       VarChar(26)        @map("project_id")
+  parentTaskId    VarChar(26)?       @map("parent_task_id")
+  title           VarChar(200)
+  description     String?
+  status          VarChar(30)        @default("ASSIGNED")
+  priority        VarChar(10)        @default("P3")
+  deadline        TimestamptzString?
+  divisionId      VarChar(26)?       @map("division_id")
+  assigneeId      VarChar(26)?       @map("assignee_id")
+  createdAt       TimestamptzString  @default(now()) @map("created_at")
+  updatedAt       TimestamptzString  @default(now()) @map("updated_at")
+  taskAttachments TaskAttachments[]
+  taskHistories   TaskHistory[]
+  assignee        Users?             @relation(fields: [assigneeId], references: [id], onDelete: SetNull, map: "fk_task_assignee")
+  division        Divisions?         @relation(fields: [divisionId], references: [id], onDelete: SetNull, map: "fk_task_division")
+  parentTask      Tasks?             @relation(name: "fk_task_parent", fields: [parentTaskId], references: [id], onDelete: Cascade, map: "fk_task_parent")
+  tasks           Tasks[]            @relation(name: "fk_task_parent")
+  project         Projects           @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_task_project")
+
+  @@index([assigneeId], map: "idx_tasks_assignee_id")
+  @@index([deadline], map: "idx_tasks_deadline")
+  @@index([divisionId], map: "idx_tasks_division_id")
+  @@index([parentTaskId], map: "idx_tasks_parent_task_id")
+  @@index([projectId], map: "idx_tasks_project_id")
+  @@index([status], map: "idx_tasks_status")
+  @@check(expression: "((priority)::text = ANY ((ARRAY['P1'::character varying, 'P2'::character varying, 'P3'::character varying])::text[]))", map: "chk_task_priority")
+  @@check(expression: "((status)::text = ANY ((ARRAY['BACKLOG'::character varying, 'ASSIGNED'::character varying, 'IN_PROGRESS'::character varying, 'REVIEW'::character varying, 'COMPLETED'::character varying, 'BLOCKED'::character varying, 'CANCELLED'::character varying])::text[]))", map: "chk_task_status")
+  @@map("tasks")
+}
+
+model TaskAttachments {
+  id         VarChar(26)       @id(map: "task_attachments_pkey")
+  taskId     VarChar(26)       @map("task_id")
+  uploadedBy VarChar(26)       @map("uploaded_by")
+  fileName   VarChar(255)      @map("file_name")
+  fileUrl    String            @map("file_url")
+  fileType   VarChar(100)?     @map("file_type")
+  fileSize   BigInt?           @map("file_size")
+  createdAt  TimestamptzString @default(now()) @map("created_at")
+  task       Tasks             @relation(fields: [taskId], references: [id], onDelete: Cascade, map: "fk_attachment_task")
+  users      Users             @relation(fields: [uploadedBy], references: [id], onDelete: Cascade, map: "fk_attachment_user", index: false)
+
+  @@index([taskId], map: "idx_task_attachments_task_id")
+  @@map("task_attachments")
+}
+
+model TaskHistory {
+  id          VarChar(26)       @id(map: "task_history_pkey")
+  taskId      VarChar(26)       @map("task_id")
+  userId      VarChar(26)       @map("user_id")
+  action      VarChar(50)
+  oldStatus   VarChar(30)?      @map("old_status")
+  newStatus   VarChar(30)?      @map("new_status")
+  description String?
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+  task        Tasks             @relation(fields: [taskId], references: [id], onDelete: Cascade, map: "fk_history_task")
+  user        Users             @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_history_user")
+
+  @@index([taskId], map: "idx_task_history_task_id")
+  @@index([userId], map: "idx_task_history_user_id")
+  @@map("task_history")
+}
