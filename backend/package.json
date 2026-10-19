@@ -4,13 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx --test \"tests/**/*.test.ts\"",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
-    "build": "tsc && pnpm prisma generate",
+    "build": "tsc",
     "start": "node dist/index.js",
     "prisma:migrate": "prisma migrate deploy",
     "postinstall": "prisma skills sync || exit 0",
-    "contract:emit": "prisma contract emit"
+    "contract:emit": "prisma contract emit",
+    "lint": "tsc --noEmit",
+    "eslint": "pnpm eslint .",
+    "lint:fix": "pnpm eslint . --fix"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +41,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@prisma/cli-engine": "0.7.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
@@ -45,10 +49,15 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "eslint": "^10.13.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-jsdoc": "^65.3.11",
     "nodemon": "^3.1.14",
     "prisma": "8.0.0-rc.22",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }
