@@ -1,7 +1,9 @@
 // import React from 'react';
-import useInput from '../hooks/useInput';
+import useInput from '../../hooks/useInput';
 
-function RegisterForm({ register }) {
+function RegisterForm({
+  register }: { register: (data: { name: string; email: string; password: string; }) => void })
+{
 
   const [name, setName] = useInput('');
   const [email, setEmail] = useInput('');

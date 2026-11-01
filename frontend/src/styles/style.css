@@ -1432,3 +1432,20 @@ img {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+@theme {
+  --color-mk-bg: #f2f2ed;
+  --color-mk-yellow: #ffdf3d;
+  --color-mk-yellow-soft: #fff3a3;
+  --color-mk-blue: #2b6cff;
+  --color-mk-blue-soft: #dbeafe;
+  --color-mk-green: #16a34a;
+  --color-mk-green-soft: #d3f8d3;
+  --color-mk-red: #ef4444;
+  --color-mk-red-soft: #fee2e2;
+  --color-mk-pink-soft: #ffd1dc;
+  --color-mk-muted: #6b7280;
+  --shadow-brutal: 6px 6px 0 #111111;
+  --shadow-brutal-sm: 3px 3px 0 #111111;
+  --font-mk-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

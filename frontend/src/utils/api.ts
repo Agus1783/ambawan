@@ -1,4 +1,4 @@
-const BASE_URL = globalThis.process.env.BASE_URL;
+const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
 function getAccessToken() {
   if (typeof window === 'undefined') {
@@ -8,7 +8,7 @@ function getAccessToken() {
   return localStorage.getItem('accessToken');
 }
 
-function putAccessToken(token) {
+function putAccessToken(token: string) {
   if (typeof window === 'undefined') {
     return;
   }
@@ -16,12 +16,12 @@ function putAccessToken(token) {
   localStorage.setItem('accessToken', token);
 }
 
-function removeAccessToken(token) {
+function removeAccessToken() {
   if (typeof window === 'undefined') {
     return;
   }
 
-  localStorage.removeItem(token);
+  localStorage.removeItem('accessToken');
 }
 
 async function _fetchWithAuth(url: string, options: RequestInit = {}) {
@@ -41,7 +41,7 @@ async function _fetchWithAuth(url: string, options: RequestInit = {}) {
   });
 }
 
-async function register({ name, email, password }) {
+async function register({ name, email, password }: { name: string; email: string; password: string; }) {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',
     headers: {
@@ -59,7 +59,7 @@ async function register({ name, email, password }) {
   return responseJson.data;
 }
 
-async function login({ email, password }) {
+async function login({ email, password }: { email: string; password: string; }) {
   const response = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: {

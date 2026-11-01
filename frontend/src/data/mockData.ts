@@ -1,138 +1,183 @@
-import type { NavItem } from '../types'
+// data mockup
+export type RoleName = 'ADMIN' | 'MANAGER' | 'DIVISION_LEADER' | 'MEMBER';
 
-export const navItems: NavItem[] = [
-  { id: 'dashboard', icon: '◉', label: 'Dasbor Eksekutif' },
-  { id: 'tasks', icon: '▣', label: 'Manajemen Proyek & Tugas' },
-  { id: 'structure', icon: '⌘', label: 'Struktur & Delegasi' },
-  { id: 'rbac', icon: '♢', label: 'Manajemen RBAC & Akses' },
-  { id: 'storage', icon: '♧', label: 'Penyimpanan Cloud' },
-]
+export type TaskStatus =
+  | 'BACKLOG'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'REVIEW'
+  | 'COMPLETED'
+  | 'BLOCKED'
+  | 'CANCELLED';
 
-export const divisionData = [
-  { name: 'Divisi Rekayasa & IT', tasks: '384 Tugas', value: 92, color: 'blue' },
-  { name: 'Divisi Produk & Desain Solusi', tasks: '290 Tugas', value: 84, color: 'teal' },
-  { name: 'Divisi Operasional & Keuangan', tasks: '356 Tugas', value: 76, color: 'gold' },
-  { name: 'Divisi Compliance & Governance', tasks: '214 Tugas', value: 68, color: 'purple' },
-]
+export type Priority = 'P1' | 'P2' | 'P3';
 
-export const lifecycleData = [
-  { label: 'Inisiasi', value: '18%', number: '18%' },
-  { label: 'Pengembangan', value: '42%', number: '42%' },
-  { label: 'Review & QA', value: '26%', number: '26%' },
-  { label: 'Penyelesaian', value: '14%', number: '14%' },
-]
+export interface Division {
+  id: string;
+  name: string;
+  leaderId: string;
+}
 
-export const criticalItems = [
-  {
-    badge: 'MENDESAK',
-    badgeClass: 'danger-pill',
-    code: 'SEC-904',
-    meta: '⏱ Tenggat Hari Ini',
-    title: 'Remediasi Vulnerabilitas Gateway ISO 27001',
-    owner: 'Dimas Saputra',
-    status: 'Tertunda Manajerial',
-  },
-  {
-    badge: 'TINGGI',
-    badgeClass: 'gold-pill',
-    code: 'OPS-112',
-    meta: '◷ Sisa 1 Hari',
-    title: 'Penyelarasan SLA Rekanan Cloud Provider Q3',
-    owner: 'Ratih Nirmala',
-    status: 'Sedang Ditinjau',
-  },
-  {
-    badge: 'TINGGI',
-    badgeClass: 'gold-pill',
-    code: 'FIN-440',
-    meta: '◷ Sisa 2 Hari',
-    title: 'Persetujuan Pencairan Capex Infrastruktur Data Center',
-    owner: 'Bambang W.',
-    status: 'Tanda Tangan Eksekutif',
-  },
-]
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: RoleName;
+  divisionId: string;
+}
 
-export const activityItems = [
-  { icon: '⌘', title: 'Bpk. Hendra (Direktur)', detail: 'mendelegasikan inisiatif strategis', project: 'Audit ISO 27001', time: '14 menit yang lalu', scope: 'Level 1 Direksi' },
-  { icon: '↗', title: 'Siti Rahma (Ketua Divisi Desain)', detail: 'membagi sub-task', project: 'Design System v2', time: '48 menit yang lalu', scope: 'Level 2 Divisi' },
-  { icon: '◉', title: 'Fahmi Reza (Lead QA)', detail: 'menyetujui hasil verifikasi akhir modul', project: 'Single Sign-On RBAC', time: '2 jam yang lalu', scope: 'Penyelesaian Mandat' },
-]
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  deadline: string;
+}
 
-export const taskRows = [
-  { id: '#TSK-842', title: 'Implementasi Enkripsi Database Medis & JWT', subtitle: '▣ Proyek Rekam Medis Terpadu · Sub-tugas (4/5 Selesai)', division: 'IT & Security' },
-  { id: '#TSK-843', title: 'Migrasi CDN Supabase Storage Assets Multi-Regional', subtitle: '☁ Infrastruktur Cloud Tier 4 · Sub-tugas (1/4 Selesai)', division: 'DevOps' },
-  { id: '#TSK-844', title: 'Integrasi Protokol FHIR / HL7 untuk Rekam Medis Nasional', subtitle: '⇄ Interoperabilitas Kemenkes · Semua Sub-tugas Selesai', division: 'Produk' },
-  { id: '#TSK-845', title: 'Audit Kelayakan Keamanan ISO 27001 Tahap II', subtitle: '⌾ Kepatuhan Regulasi & Siber · Sub-tugas (0/3)', division: 'Governance' },
-]
+export interface Task {
+  id: string;
+  projectId: string;
+  parentTaskId: string | null;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: Priority;
+  deadline: string;
+  divisionId: string | null;
+  assigneeId: string | null;
+}
 
-export const managerList = [
-  {
-    label: 'TIER 2 · DIVISI TEKNIS',
-    name: 'Raihan Anugrah',
-    subtitle: 'Ketua Divisi Rekayasa Lunak',
-    strength: '14 Pelaksana',
-    activeTasks: '38 Mandat',
-    load: '74% (Optimal)',
-    loadValue: 74,
-    members: [
-      { name: 'Andi Firmansyah', description: 'Backend Core · 70% Normal' },
-      { name: 'Siti Amelia', description: 'DevOps & Cloud · 110% Overload' },
-    ],
-  },
-  {
-    label: 'TIER 2 · DIVISI KREATIF',
-    name: 'Andra Putranta',
-    subtitle: 'Ketua Divisi Desain & Produk',
-    strength: '8 Pelaksana',
-    activeTasks: '19 Mandat',
-    load: '85% (Optimal)',
-    loadValue: 85,
-    members: [
-      { name: 'Bayu Wicaksono', description: 'UI/UX Systems · 85% Optimal' },
-      { name: 'Larasti Putri', description: 'Design Researcher · 65% Normal' },
-    ],
-  },
-  {
-    label: 'TIER 2 · OPERASI BISNIS',
-    name: 'Risfalda Hanum',
-    subtitle: 'Ketua Pemasaran & O',
-    strength: '11 Pelaksana',
-    activeTasks: '24 Mandat',
-    load: '72% (Optimal)',
-    loadValue: 72,
-    members: [
-      { name: 'Gita Novita', description: 'Field Ops Strategist · 72%' },
-      { name: 'Hendra', description: 'Campaign Ops · 80%' },
-    ],
-  },
-]
+export interface HistoryItem {
+  id: string;
+  taskId: string;
+  userId: string;
+  action: string;
+  oldStatus: string | null;
+  newStatus: string | null;
+  description: string | null;
+  createdAt: string;
+}
 
-export const auditRows = [
-  ['15 Jun 2025, 09:30 WIB', 'DEL-2025-0891', 'BS Wimbuh Agus Alim', 'RP Raihan Anugrah', 'Mandat Migrasi Datacenter Jakarta Tier-4', 'Tingkat 1'],
-  ['15 Jun 2025, 08:14 WIB', 'DEL-2025-0890', 'RP Raihan Anugrah', 'SA Siti Amelia', 'Implementasi Kubernetes Failover Cluster', 'Tingkat 2'],
-  ['14 Jun 2025, 16:45 WIB', 'DEL-2025-0887', 'BS Wimbuh Agus Alim', 'DK Dina Kusuma', 'Audit Komprehensif Aksesibilitas WCAG 2.1 AA', 'Tingkat 1'],
-]
+export interface Attachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+}
 
-export const roleCards = [
-  { level: 'TINGKAT 1 — ROOT', title: 'Administrator', count: '3', subtitle: 'Akun Aktif', text: 'Akses penuh kontrol sistem, rotasi kunci kriptografi JWT, audit global, dan regulasi RBAC terpusat.', accent: '' },
-  { level: 'TINGKAT 2 — MANAJERIAL', title: 'Manager / Eksekutif', count: '8', subtitle: 'Akun Aktif', text: 'Delegasi lintas divisi, pemantauan dasbor eksekutif, serta approval anggaran dan proyek strategis.', accent: '' },
-  { level: 'TINGKAT 3 — SUPERVISI', title: 'Ketua Divisi', count: '16', subtitle: 'Akun Aktif', text: 'Kelola anggota internal divisi, alokasi tugas berjenjang, peninjauan progres, dan validasi output kerja.', accent: 'teal-card' },
-  { level: 'TINGKAT 4 — OPERASIONAL', title: 'Anggota (Staff)', count: '115', subtitle: 'Akun Aktif', text: 'Eksekusi tugas operasional, unggah arsip kerja cloud storage, pembaruan status checklist berkala.', accent: 'gray-card' },
-]
+export const ROLE_LABELS: Record<RoleName, string> = {
+  ADMIN: 'Administrator',
+  MANAGER: 'Manager',
+  DIVISION_LEADER: 'Ketua Divisi',
+  MEMBER: 'Anggota',
+};
 
-export const permissionMatrix = [
-  ['🏛 Manajemen Organisasi & Direktorat', '✓', '✓', '−', '−'],
-  ['⚯ Delegasi Tugas Berjenjang', '✓', '✓', '✓', '−'],
-  ['▣ CRUD Project & Milestone', '✓', '✓', '✓', 'ⓘ'],
-  ['☁ Upload Lampiran Cloud Storage', '✓', '✓', '✓', '✓'],
-  ['♙ Penghapusan Data Permanen (Hard Delete)', '✓', '−', '−', '−'],
-  ['♢ Pengaturan Kebijakan RBAC & JWT', '✓', '−', '−', '−'],
-]
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  BACKLOG: 'Backlog',
+  ASSIGNED: 'Ditugaskan',
+  IN_PROGRESS: 'Dikerjakan',
+  REVIEW: 'Review',
+  COMPLETED: 'Selesai',
+  BLOCKED: 'Terhambat',
+  CANCELLED: 'Dibatalkan',
+};
 
-export const directoryRows = [
-  { initials: 'AD', name: 'Arya Daniswara', email: 'arya.daniswara@sovereign.id', division: 'Direksi & Eksekutif', role: 'Administrator', roleClass: 'role-pill', tokenStatus: 'Hari ini, 09:41 WIB', validity: '✓ Token Valid (exp 10:41)', statusClass: 'green-pill', twoFa: 'AKTIF', accent: '' },
-  { initials: 'BW', name: 'Bima Wicaksono', email: 'bima.w@sovereign.id', division: 'Teknologi & Produk', role: 'Manager', roleClass: 'role-pill', tokenStatus: 'Hari ini, 08:15 WIB', validity: '✓ Token Valid (exp 14:15)', statusClass: 'green-pill', twoFa: 'AKTIF', accent: 'pale' },
-  { initials: 'DR', name: 'Dewi Rahmawati', email: 'dewi.r@sovereign.id', division: 'Operasional & SDM', role: 'Ketua Divisi', roleClass: 'role-pill teal-pill', tokenStatus: 'Kemarin, 17:30 WIB', validity: 'Token Sesi Berakhir', statusClass: '', twoFa: 'AKTIF', accent: 'teal' },
-  { initials: 'RA', name: 'Rian Anggoro', email: 'rian.a@sovereign.id', division: 'Teknologi & Produk', role: 'Anggota', roleClass: 'role-pill gray-pill', tokenStatus: 'Hari ini, 09:02 WIB', validity: '✓ Token Valid (exp 10:02)', statusClass: 'green-pill', twoFa: 'NON-AKTIF', accent: 'pale' },
-  { initials: 'FS', name: 'Fajar Santoso', email: 'fajar.s@sovereign.id', division: 'Pemasaran & Hubungan', role: 'Anggota', roleClass: 'role-pill gray-pill', tokenStatus: '3 hari lalu', validity: '⊘ Akun Ditangguhkan', statusClass: 'red', twoFa: 'NON-AKTIF', accent: 'coral' },
-]
+export const STATUS_CHIP: Record<TaskStatus, string> = {
+  BACKLOG: '',
+  ASSIGNED: 'bg-mk-blue-soft',
+  IN_PROGRESS: 'bg-mk-yellow-soft',
+  REVIEW: 'bg-mk-pink-soft',
+  COMPLETED: 'bg-mk-green-soft',
+  BLOCKED: 'bg-mk-red-soft',
+  CANCELLED: '',
+};
+
+export const PRIORITY_LABELS: Record<Priority, string> = {
+  P1: 'P1 - Mendesak',
+  P2: 'P2 - Penting',
+  P3: 'P3 - Normal',
+};
+
+export const CURRENT_USER_ID = 'usr_02';
+
+export const divisions: Division[] = [
+  { id: 'div_it', name: 'IT', leaderId: 'usr_01' },
+  { id: 'div_mkt', name: 'Marketing', leaderId: 'usr_04' },
+  { id: 'div_ops', name: 'Operasional', leaderId: 'usr_05' },
+];
+
+export const users: User[] = [
+  { id: 'usr_01', name: 'Budi Santoso', email: 'budi@ambado.id', role: 'DIVISION_LEADER', divisionId: 'div_it' },
+  { id: 'usr_02', name: 'Andi Pratama', email: 'andi@ambado.id', role: 'MEMBER', divisionId: 'div_it' },
+  { id: 'usr_03', name: 'Sinta Maharani', email: 'sinta@ambado.id', role: 'MEMBER', divisionId: 'div_it' },
+  { id: 'usr_04', name: 'Rina Wijaya', email: 'rina@ambado.id', role: 'DIVISION_LEADER', divisionId: 'div_mkt' },
+  { id: 'usr_05', name: 'Dewi Lestari', email: 'dewi@ambado.id', role: 'DIVISION_LEADER', divisionId: 'div_ops' },
+  { id: 'usr_06', name: 'Agus Manager', email: 'agus@ambado.id', role: 'MANAGER', divisionId: 'div_it' },
+];
+
+export const projects: Project[] = [
+  { id: 'prj_01', name: 'Sistem Absensi Mahasiswa', description: 'Pengembangan sistem absensi berbasis QR untuk kampus.', deadline: '2026-11-30' },
+  { id: 'prj_02', name: 'Portal Akademik v2', description: 'Perombakan portal akademik: KRS online dan nilai.', deadline: '2026-12-20' },
+  { id: 'prj_03', name: 'Aplikasi Mobile Kampus', description: 'Aplikasi Android/iOS untuk informasi kampus.', deadline: '2027-01-15' },
+];
+
+export const tasks: Task[] = [
+  { id: 'tsk_01', projectId: 'prj_01', parentTaskId: null, title: 'Membuat API Login', description: 'Implementasi endpoint POST /auth/login dengan JWT dan bcrypt.', status: 'IN_PROGRESS', priority: 'P1', deadline: '2026-11-05', divisionId: 'div_it', assigneeId: 'usr_02' },
+  { id: 'tsk_02', projectId: 'prj_01', parentTaskId: 'tsk_01', title: 'Validasi input login', description: 'Validasi email dan password dengan Zod.', status: 'COMPLETED', priority: 'P2', deadline: '2026-11-02', divisionId: 'div_it', assigneeId: 'usr_03' },
+  { id: 'tsk_03', projectId: 'prj_01', parentTaskId: null, title: 'Desain halaman absensi', description: 'Mockup halaman scan QR dan rekap kehadiran.', status: 'REVIEW', priority: 'P1', deadline: '2026-11-08', divisionId: 'div_it', assigneeId: 'usr_02' },
+  { id: 'tsk_04', projectId: 'prj_01', parentTaskId: null, title: 'Integrasi QR scanner', description: 'Integrasi library pemindai QR di halaman absensi.', status: 'ASSIGNED', priority: 'P2', deadline: '2026-11-12', divisionId: 'div_it', assigneeId: null },
+  { id: 'tsk_05', projectId: 'prj_02', parentTaskId: null, title: 'Migrasi database nilai', description: 'Migrasi tabel nilai lama ke skema baru.', status: 'BLOCKED', priority: 'P1', deadline: '2026-11-03', divisionId: 'div_it', assigneeId: 'usr_03' },
+  { id: 'tsk_06', projectId: 'prj_02', parentTaskId: null, title: 'Halaman KRS online', description: 'CRUD KRS untuk mahasiswa.', status: 'IN_PROGRESS', priority: 'P2', deadline: '2026-11-18', divisionId: 'div_it', assigneeId: 'usr_02' },
+  { id: 'tsk_07', projectId: 'prj_02', parentTaskId: null, title: 'Kampanye sosial media', description: 'Materi promosi portal akademik v2.', status: 'ASSIGNED', priority: 'P3', deadline: '2026-11-20', divisionId: 'div_mkt', assigneeId: 'usr_04' },
+  { id: 'tsk_08', projectId: 'prj_03', parentTaskId: null, title: 'Riset framework mobile', description: 'Bandingkan React Native vs Flutter untuk aplikasi kampus.', status: 'COMPLETED', priority: 'P2', deadline: '2026-10-28', divisionId: 'div_it', assigneeId: 'usr_02' },
+  { id: 'tsk_09', projectId: 'prj_03', parentTaskId: null, title: 'Wireframe aplikasi', description: 'Wireframe 10 layar utama aplikasi mobile.', status: 'BACKLOG', priority: 'P3', deadline: '2026-11-25', divisionId: 'div_it', assigneeId: null },
+  { id: 'tsk_10', projectId: 'prj_01', parentTaskId: null, title: 'Laporan kehadiran bulanan', description: 'Export PDF rekap kehadiran per bulan.', status: 'ASSIGNED', priority: 'P2', deadline: '2026-11-15', divisionId: 'div_ops', assigneeId: 'usr_05' },
+  { id: 'tsk_11', projectId: 'prj_02', parentTaskId: null, title: 'Uji beban portal', description: 'Load test 1000 pengguna bersamaan.', status: 'BACKLOG', priority: 'P2', deadline: '2026-12-01', divisionId: 'div_it', assigneeId: null },
+  { id: 'tsk_12', projectId: 'prj_01', parentTaskId: null, title: 'Dokumentasi API', description: 'Tulis dokumentasi endpoint auth dan absensi.', status: 'COMPLETED', priority: 'P3', deadline: '2026-10-30', divisionId: 'div_it', assigneeId: 'usr_03' },
+];
+
+export const history: HistoryItem[] = [
+  { id: 'hst_01', taskId: 'tsk_01', userId: 'usr_06', action: 'CREATED', oldStatus: null, newStatus: 'ASSIGNED', description: 'Task dibuat oleh Manager', createdAt: '2026-10-28 09:00' },
+  { id: 'hst_02', taskId: 'tsk_01', userId: 'usr_01', action: 'DELEGATED', oldStatus: null, newStatus: null, description: 'Didelegasikan ke Andi Pratama', createdAt: '2026-10-28 10:15' },
+  { id: 'hst_03', taskId: 'tsk_01', userId: 'usr_02', action: 'STATUS_CHANGED', oldStatus: 'ASSIGNED', newStatus: 'IN_PROGRESS', description: null, createdAt: '2026-10-29 08:30' },
+  { id: 'hst_04', taskId: 'tsk_03', userId: 'usr_02', action: 'STATUS_CHANGED', oldStatus: 'IN_PROGRESS', newStatus: 'REVIEW', description: 'Siap direview ketua divisi', createdAt: '2026-11-01 14:20' },
+  { id: 'hst_05', taskId: 'tsk_05', userId: 'usr_03', action: 'STATUS_CHANGED', oldStatus: 'IN_PROGRESS', newStatus: 'BLOCKED', description: 'Menunggu akses database lama', createdAt: '2026-11-01 09:45' },
+];
+
+export const attachments: Attachment[] = [
+  { id: 'att_01', taskId: 'tsk_01', fileName: 'api-login-spec.pdf', fileType: 'application/pdf', fileSize: 245760 },
+  { id: 'att_02', taskId: 'tsk_03', fileName: 'mockup-absensi.png', fileType: 'image/png', fileSize: 512000 },
+  { id: 'att_03', taskId: 'tsk_01', fileName: 'postman-collection.json', fileType: 'application/json', fileSize: 18432 },
+];
+
+export const weeklyDone = [
+  { week: 'W1', label: '1–7 Nov', count: 3 },
+  { week: 'W2', label: '8–14 Nov', count: 8 },
+  { week: 'W3', label: '15–21 Nov', count: 5 },
+  { week: 'W4', label: '22–28 Nov', count: 2 },
+];
+
+export function userName(id: string | null): string {
+  if (!id) return 'Belum ditentukan';
+  return users.find((u) => u.id === id)?.name ?? id;
+}
+
+export function divisionName(id: string | null): string {
+  if (!id) return '—';
+  return divisions.find((d) => d.id === id)?.name ?? id;
+}
+
+export function projectName(id: string): string {
+  return projects.find((p) => p.id === id)?.name ?? id;
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
+const TODAY = '2026-11-04';
+
+export function isOverdue(t: Task): boolean {
+  return t.deadline < TODAY && t.status !== 'COMPLETED' && t.status !== 'CANCELLED';
+}

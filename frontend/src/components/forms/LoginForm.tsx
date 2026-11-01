@@ -1,6 +1,6 @@
-import useInput from "../hooks/useInput";
+import useInput from "../../hooks/useInput";
 
-function LoginForm({ login }) {
+function LoginForm({ login }: { login: (credentials: { email: string; password: string; }) => void}) {
   const [email, setEmail] = useInput('');
   const [password, setPassword] = useInput('');
 
