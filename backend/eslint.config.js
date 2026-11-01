@@ -3,6 +3,9 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import googleConfig from 'eslint-config-google';
 import jsdoc from 'eslint-plugin-jsdoc';
+import globals from 'globals';
+import pluginJs from "@eslint/js";
+import tseslint from "typescript-eslint";
 
 export default [
   // mengabaikan folder hasil build atau dependensi
@@ -23,6 +26,9 @@ export default [
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
+      globals: {
+        ...globals.node,
+      }
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
@@ -31,7 +37,7 @@ export default [
     rules: {
       // Mengambil semua aturan bawaan dari Google Config
       ...googleConfig.rules,
-      // Matikan aturan JSDoc Google jika Anda merasa terlalu ketat untuk TS
+      // Matikan aturan JSDoc Google terlalu ketat untuk TS
       'require-jsdoc': 'off',
       'valid-jsdoc': 'off',
       'linebreak-style': 'off',
@@ -45,8 +51,10 @@ export default [
 
       // Penyesuaian khusus TypeScript agar tidak konflik dengan aturan Google:
       'no-unused-vars': 'off', // Matikan bawaan JS
-      '@typescript-eslint/no-unused-vars': ['error'], // Gunakan bawaan TS
+      '@typescript-eslint/no-unused-vars': ['error'], // bawaan TS
 
     },
   },
+  pluginJs.configs.recommended,
+  ...tseslint.configs.recommended,
 ];

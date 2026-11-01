@@ -9,12 +9,13 @@
     // See also https://aka.ms/tsconfig/module
     "module": "preserve",
     "target": "es2022",
+    // "moduleResolution": "nodenext",
     "types": [
       "node"
     ],
     "lib": ["es2022"],
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -48,5 +49,5 @@
     "resolveJsonModule": true,
     // "skipLibCheck": true,
   },
-  "include": ["src/**/*", "prisma"]
+  "include": ["src/**/*", "prisma", "tests/**/*"]
 }
