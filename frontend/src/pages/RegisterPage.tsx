@@ -1,13 +1,13 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { asyncRegisterUser } from '../states/users/action';
-import RegisterForm from '../components/RegisterForm';
+import RegisterForm from '../components/forms/RegisterForm';
 
 function RegisterPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const onRegister = ({ name, email, password }) => {
+  const onRegister = ({ name, email, password }: { name: string; email: string; password: string; }) => {
     dispatch(asyncRegisterUser({ name, email, password }));
 
     navigate('/auth/register');

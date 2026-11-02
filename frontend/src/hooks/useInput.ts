@@ -1,9 +1,10 @@
+import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 
 function useInput(defaultValue = '') {
   const [value, setValue] = useState(defaultValue);
 
-  function handleValueChange({ target }) {
+  function handleValueChange({ target }: ChangeEvent<HTMLInputElement>) {
     setValue(target.value)
   }
 
