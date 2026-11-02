@@ -37,11 +37,11 @@ export function DelegationPage({ tasks, onDelegate }: { tasks: Task[]; onDelegat
   return (
     <div className={stackClass}>
       <div className={cardClass}>
-        <h2 className={sectionTitleClass}>Delegasikan Task</h2>
-        <p className={sectionLabelClass}>Ketua divisi dapat mendelegasikan task ke anggota</p>
+        <h2 className={sectionTitleClass}>Delegasikan Tugas</h2>
+        <p className={sectionLabelClass}>Ketua divisi dapat mendelegasikan tugas ke anggota</p>
         <form onSubmit={submit} className={rowClass}>
           <label className={fieldClass}>
-            <span className={fieldLabelClass}>Task</span>
+            <span className={fieldLabelClass}>Tugas</span>
             <select className={inputClass} value={taskId} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTaskId(e.target.value)}>
               {tasks.map((t) => (
                 <option key={t.id} value={t.id}>{t.title}</option>

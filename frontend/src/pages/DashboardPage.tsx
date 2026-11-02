@@ -7,6 +7,7 @@ import { ProgressBar } from '../components/mockup/ProgressBar';
 import { StatCard } from '../components/mockup/StatCard';
 import { WeekChart } from '../components/mockup/WeekChart';
 import {
+  cardBaseClass,
   cardClass,
   grid2Class,
   grid3Class,
@@ -48,7 +49,7 @@ export function DashboardPage({ tasks }: { tasks: Task[] }) {
         <p className={sectionLabelClass}>Target penyelesaian bertahap per project</p>
         <div className={grid2Class}>
           {milestones.map((m) => (
-            <div key={m.name} className={`${cardClass} ${m.color} shadow-brutal-sm`}>
+            <div key={m.name} className={`${cardBaseClass} ${m.color} shadow-brutal-sm dark:shadow-brutal-sm-light p-4.5 text-black`}>
               <div className={`${rowClass} justify-between`}>
                 <strong className="uppercase">{m.name} — {m.target}</strong>
                 <Chip className="bg-mk-green-soft">{m.bonus}</Chip>

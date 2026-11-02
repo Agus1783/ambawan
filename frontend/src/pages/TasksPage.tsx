@@ -1,11 +1,18 @@
 // Halaman Daftar Task mockup: cari + filter status/prioritas/divisi + pagination.
+// Klik baris untuk membuka detail task.
+// Tombol "Tambah Tugas" hanya untuk ADMIN, MANAGER, dan DIVISION_LEADER
+// (MEMBER tidak bisa membuat task). Task baru masuk ke state lokal
+// lewat onAddTask; nanti disambungkan ke POST /tasks (spec §12).
 import { useState } from 'react';
-import type { ChangeEvent } from 'react';
-import type { Priority, Task, TaskStatus } from '../data/mockData';
-import { STATUS_LABELS, divisions, isOverdue, projectName, userName } from '../data/mockData';
+import type { ChangeEvent, FormEvent } from 'react';
+import type { Priority, Project, RoleName, Task, TaskStatus } from '../data/mockData';
+import { STATUS_LABELS, divisions, isOverdue, projectName, userName, users } from '../data/mockData';
 import { Chip, StatusChip } from '../components/mockup/Chip';
+import { Modal } from '../components/mockup/Modal';
 import {
   btnClass,
+  btnYellowClass,
+  cardBaseClass,
   cardClass,
   fieldClass,
   fieldLabelClass,
@@ -19,12 +26,35 @@ import {
 
 const PAGE_SIZE = 6;
 
-export function TasksPage({ tasks, onSelectTask }: { tasks: Task[]; onSelectTask: (id: string) => void }) {
+const CAN_CREATE_TASK: RoleName[] = ['ADMIN', 'MANAGER', 'DIVISION_LEADER'];
+
+export function TasksPage({
+  tasks,
+  projects,
+  role,
+  onSelectTask,
+  onAddTask,
+}: {
+  tasks: Task[];
+  projects: Project[];
+  role: RoleName;
+  onSelectTask: (id: string) => void;
+  onAddTask: (t: Task) => void;
+}) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'ALL'>('ALL');
   const [divisionFilter, setDivisionFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
+  const [divisionId, setDivisionId] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [priority, setPriority] = useState<Priority>('P3');
+  const [deadline, setDeadline] = useState('');
 
   const filtered = tasks.filter((t) => {
     const matchQuery = t.title.toLowerCase().includes(query.toLowerCase());
@@ -39,8 +69,96 @@ export function TasksPage({ tasks, onSelectTask }: { tasks: Task[]; onSelectTask
   const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const resetPage = () => setPage(1);
 
+  const submitTask = (e: FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !projectId || !deadline) return;
+    onAddTask({
+      id: `tsk_${Date.now()}`,
+      projectId,
+      parentTaskId: null,
+      title: title.trim(),
+      description: description.trim(),
+      status: assigneeId ? 'ASSIGNED' : 'BACKLOG',
+      priority,
+      deadline,
+      divisionId: divisionId || null,
+      assigneeId: assigneeId || null,
+    });
+    setTitle('');
+    setDescription('');
+    setDivisionId('');
+    setAssigneeId('');
+    setPriority('P3');
+    setDeadline('');
+    setShowForm(false);
+    setPage(1);
+  };
+
   return (
     <div className={stackClass}>
+      {CAN_CREATE_TASK.includes(role) && (
+        <div className={rowClass}>
+          <button type="button" className={btnYellowClass} onClick={() => setShowForm(true)}>+ Tambah Tugas</button>
+        </div>
+      )}
+
+      {showForm && (
+        <Modal title="Tambah Tugas Baru" onClose={() => setShowForm(false)}>
+          <form onSubmit={submitTask} className="flex flex-col gap-3">
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Judul Task</span>
+              <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Membuat API absensi" />
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Deskripsi</span>
+              <textarea className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Project</span>
+              <select className={inputClass} value={projectId} onChange={(e: ChangeEvent<HTMLSelectElement>) => setProjectId(e.target.value)}>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Divisi (opsional)</span>
+              <select className={inputClass} value={divisionId} onChange={(e: ChangeEvent<HTMLSelectElement>) => setDivisionId(e.target.value)}>
+                <option value="">Tanpa divisi</option>
+                {divisions.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Penanggung Jawab (opsional)</span>
+              <select className={inputClass} value={assigneeId} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssigneeId(e.target.value)}>
+                <option value="">Belum ditentukan</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Prioritas</span>
+              <select className={inputClass} value={priority} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPriority(e.target.value as Priority)}>
+                <option value="P1">P1 - Mendesak</option>
+                <option value="P2">P2 - Penting</option>
+                <option value="P3">P3 - Normal</option>
+              </select>
+            </label>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Deadline</span>
+              <input className={inputClass} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+            </label>
+            <span className="flex gap-2 flex-wrap">
+              <button type="submit" className={btnYellowClass}>Simpan Task</button>
+              <button type="button" className={btnClass} onClick={() => setShowForm(false)}>Batal</button>
+            </span>
+          </form>
+        </Modal>
+      )}
+
       <div className={cardClass}>
         <div className={rowClass}>
           <label className={fieldClass}>
@@ -77,7 +195,7 @@ export function TasksPage({ tasks, onSelectTask }: { tasks: Task[]; onSelectTask
         </div>
       </div>
 
-      <div className={`${cardClass} p-0 overflow-hidden`}>
+      <div className={`${cardBaseClass} bg-white shadow-brutal p-0 overflow-hidden`}>
         <table className="w-full border-collapse">
           <thead>
             <tr>

@@ -5,6 +5,7 @@ import type { Project, Task } from '../data/mockData';
 import { Modal } from '../components/mockup/Modal';
 import { ProgressBar } from '../components/mockup/ProgressBar';
 import {
+  btnClass,
   btnRedClass,
   btnYellowClass,
   cardClass,
@@ -33,6 +34,7 @@ export function ProjectsPage({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [deleting, setDeleting] = useState<Project | null>(null);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -70,6 +72,25 @@ export function ProjectsPage({
         </Modal>
       )}
 
+      {deleting && (
+        <Modal title="Hapus Project" onClose={() => setDeleting(null)}>
+          <p>
+            Hapus project <strong>{deleting.name}</strong>? Semua task di dalam project ini juga akan ikut
+            terhapus. Tindakan ini tidak bisa dibatalkan.
+          </p>
+          <span className="flex gap-2 flex-wrap mt-4">
+            <button
+              type="button"
+              className={btnRedClass}
+              onClick={() => { onDeleteProject(deleting.id); setDeleting(null); }}
+            >
+              Ya, Hapus
+            </button>
+            <button type="button" className={btnClass} onClick={() => setDeleting(null)}>Batal</button>
+          </span>
+        </Modal>
+      )}
+
       <div className={grid2Class}>
         {projects.map((p) => {
           const pTasks = tasks.filter((t) => t.projectId === p.id);
@@ -79,7 +100,7 @@ export function ProjectsPage({
             <div className={cardClass} key={p.id}>
               <div className={`${rowClass} justify-between`}>
                 <h3 className={`${sectionTitleClass} m-0`}>{p.name}</h3>
-                <button type="button" className={btnRedClass} onClick={() => onDeleteProject(p.id)}>Hapus</button>
+                <button type="button" className={btnRedClass} onClick={() => setDeleting(p)}>Hapus</button>
               </div>
               <p className={mutedClass}>{p.description}</p>
               <p className={mutedClass}>Deadline: {p.deadline} · {pDone}/{pTasks.length} task selesai</p>

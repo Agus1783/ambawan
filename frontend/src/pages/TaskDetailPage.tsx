@@ -1,11 +1,12 @@
 // Halaman Detail Task mockup: ubah status, subtask, lampiran,
 // timeline riwayat, dan komentar.
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import type { Task, TaskStatus } from '../data/mockData';
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
+  CURRENT_USER_ID,
   attachments,
   divisionName,
   formatFileSize,
@@ -47,9 +48,28 @@ export function TaskDetailPage({
   onAddComment: (text: string) => void;
 }) {
   const [comment, setComment] = useState('');
+  const [attachmentList, setAttachmentList] = useState(attachments);
   const subtasks = tasks.filter((t) => t.parentTaskId === task.id);
   const taskHistory = history.filter((h) => h.taskId === task.id);
-  const taskAttachments = attachments.filter((a) => a.taskId === task.id);
+  const taskAttachments = attachmentList.filter((a) => a.taskId === task.id);
+
+  const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setAttachmentList((prev) => [
+      ...prev,
+      ...files.map((f, i) => ({
+        id: `att_${Date.now()}_${i}`,
+        taskId: task.id,
+        fileName: f.name,
+        fileType: f.type || 'unknown',
+        fileSize: f.size,
+        uploadedBy: CURRENT_USER_ID,
+      })),
+    ]);
+    e.target.value = '';
+  };
+
 
   const submitComment = (e: FormEvent) => {
     e.preventDefault();
@@ -96,9 +116,9 @@ export function TaskDetailPage({
 
       <div className={grid2Class}>
         <div className={cardClass}>
-          <h3 className={sectionTitleClass}>Subtask</h3>
-          <p className={sectionLabelClass}>{subtasks.length} subtask</p>
-          {subtasks.length === 0 && <p className={mutedClass}>Tidak ada subtask.</p>}
+          <h3 className={sectionTitleClass}>Subtugas</h3>
+          <p className={sectionLabelClass}>{subtasks.length} subtugas</p>
+          {subtasks.length === 0 && <p className={mutedClass}>Tidak ada subtugas.</p>}
           {subtasks.map((s) => (
             <div key={s.id} className={`${rowClass} justify-between mb-2`}>
               <span>{s.title}</span>
@@ -117,13 +137,17 @@ export function TaskDetailPage({
               <span className={mutedClass}>{formatFileSize(a.fileSize)}</span>
             </div>
           ))}
-          <button type="button" className={`${btnBlueClass} mt-2`}>+ Upload File</button>
+          <label className={`${btnBlueClass} mt-2 cursor-pointer`}>
+            + Upload File
+            <input type="file" multiple hidden onChange={handleUpload} />
+          </label>
+
         </div>
       </div>
 
       <div className={grid2Class}>
         <div className={cardClass}>
-          <h3 className={sectionTitleClass}>Riwayat Task</h3>
+          <h3 className={sectionTitleClass}>Riwayat Tugas</h3>
           <p className={sectionLabelClass}>Timeline aktivitas</p>
           <div className="flex flex-col">
             {taskHistory.map((h) => (
@@ -144,7 +168,7 @@ export function TaskDetailPage({
           <h3 className={sectionTitleClass}>Komentar</h3>
           <p className={sectionLabelClass}>{comments.length} komentar</p>
           {comments.map((c, i) => (
-            <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] pb-2">{c}</p>
+            <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2">{c}</p>
           ))}
           <form onSubmit={submitComment} className="flex flex-col gap-2 mt-3">
             <textarea className={inputClass} value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Tulis komentar..." />

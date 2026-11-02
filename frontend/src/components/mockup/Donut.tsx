@@ -19,7 +19,7 @@ export function Donut({ percent, label }: { percent: number; label: string }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-black text-[22px]">{pct}%</span>
-        <span className="font-mk-mono text-[10px] tracking-[0.2em] text-mk-muted uppercase">{label}</span>
+        <span className="font-mk-mono text-[10px] tracking-[0.2em] text-mk-muted dark:text-[#a3a3a3] uppercase">{label}</span>
       </div>
     </div>
   );

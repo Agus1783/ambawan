@@ -32,7 +32,7 @@ export function MyTasksPage({ tasks, onUpdateStatus }: { tasks: Task[]; onUpdate
             </div>
           </div>
         ))}
-        {mine.length === 0 && <p className={mutedClass}>Tidak ada task yang ditugaskan ke kamu.</p>}
+        {mine.length === 0 && <p className={mutedClass}>Tidak ada tugas yang ditugaskan ke kamu.</p>}
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ export function WeekChart({ data }: { data: { week: string; label: string; count
             style={{ height: `${(d.count / max) * 100}%` }}
           />
           <span className="font-mk-mono text-[10px] tracking-wide">{d.week}</span>
-          <span className="font-mk-mono text-[10px] tracking-wide text-mk-muted">{d.label}</span>
+          <span className="font-mk-mono text-[10px] tracking-wide text-mk-muted dark:text-[#a3a3a3]">{d.label}</span>
         </div>
       ))}
     </div>

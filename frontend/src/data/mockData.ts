@@ -65,6 +65,15 @@ export interface Attachment {
   fileSize: number;
 }
 
+export interface Attachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  uploadedBy: string;
+}
+
 export const ROLE_LABELS: Record<RoleName, string> = {
   ADMIN: 'Administrator',
   MANAGER: 'Manager',
@@ -145,9 +154,9 @@ export const history: HistoryItem[] = [
 ];
 
 export const attachments: Attachment[] = [
-  { id: 'att_01', taskId: 'tsk_01', fileName: 'api-login-spec.pdf', fileType: 'application/pdf', fileSize: 245760 },
-  { id: 'att_02', taskId: 'tsk_03', fileName: 'mockup-absensi.png', fileType: 'image/png', fileSize: 512000 },
-  { id: 'att_03', taskId: 'tsk_01', fileName: 'postman-collection.json', fileType: 'application/json', fileSize: 18432 },
+  { id: 'att_01', taskId: 'tsk_01', fileName: 'api-login-spec.pdf', fileType: 'application/pdf', fileSize: 245760, uploadedBy: 'usr_02' },
+  { id: 'att_02', taskId: 'tsk_03', fileName: 'mockup-absensi.png', fileType: 'image/png', fileSize: 512000, uploadedBy: 'usr_02' },
+  { id: 'att_03', taskId: 'tsk_01', fileName: 'postman-collection.json', fileType: 'application/json', fileSize: 18432, uploadedBy: 'usr_03' },
 ];
 
 export const weeklyDone = [
