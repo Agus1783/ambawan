@@ -1,13 +1,10 @@
-// Halaman Organisasi mockup: kartu divisi + tabel anggota dengan role (RBAC).
-// Aksi ADMIN: edit role/divisi anggota (modal) dan hapus anggota
-// (modal konfirmasi). Semua masih state lokal; nanti disambungkan ke
-// API spec §7.4 PUT /users/:id dan §7.5 DELETE /users/:id (ADMIN only).
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import type { RoleName, User } from '../data/mockData';
-import { CURRENT_USER_ID, ROLE_LABELS, divisionName, divisions, users } from '../data/mockData';
-import { Chip } from '../components/mockup/Chip';
-import { Modal } from '../components/mockup/Modal';
+import { CURRENT_USER_ID, ROLE_LABELS, divisions, users } from '../data/mockData';
+import { divisionName } from '../utils/helpers';
+import type { RoleName, User } from '../interfaces/types';
+import { Chip } from '../components/ui/Chip';
+import { Modal } from '../components/ui/Modal';
 import {
   btnBlueClass,
   btnClass,
@@ -24,7 +21,7 @@ import {
   stackClass,
   tableTdClass,
   tableThClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 export function OrganizationPage() {
   const [memberList, setMemberList] = useState<User[]>(users);

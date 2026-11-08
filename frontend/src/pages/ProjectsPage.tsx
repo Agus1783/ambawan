@@ -1,9 +1,9 @@
 // Halaman Project mockup: daftar kartu project + form buat project (modal).
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Project, Task } from '../data/mockData';
-import { Modal } from '../components/mockup/Modal';
-import { ProgressBar } from '../components/mockup/ProgressBar';
+import type { Project, Task } from '../interfaces/types';
+import { Modal } from '../components/ui/Modal';
+import { ProgressBar } from '../components/ui/ProgressBar';
 import {
   btnClass,
   btnRedClass,
@@ -17,7 +17,7 @@ import {
   rowClass,
   sectionTitleClass,
   stackClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 export function ProjectsPage({
   projects,
