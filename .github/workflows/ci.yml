@@ -48,6 +48,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm test
       - run: pnpm build
 
   # Job 3: hanya jalan jika ada perubahan di backend

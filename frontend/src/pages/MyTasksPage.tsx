@@ -1,8 +1,9 @@
 // Halaman Task Saya mockup: task yang ditugaskan ke pengguna saat ini,
 // dengan tombol aksi status (Mulai / Ajukan Review / Selesai).
-import type { Task, TaskStatus } from '../data/mockData';
-import { CURRENT_USER_ID, projectName } from '../data/mockData';
-import { StatusChip } from '../components/mockup/Chip';
+import type { Task, TaskStatus } from '../interfaces/types';
+import { CURRENT_USER_ID } from '../data/mockData';
+import { projectName } from '../utils/helpers';
+import { StatusChip } from '../components/ui/Chip';
 import {
   btnClass,
   btnYellowClass,
@@ -11,7 +12,7 @@ import {
   mutedClass,
   rowClass,
   stackClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 export function MyTasksPage({ tasks, onUpdateStatus }: { tasks: Task[]; onUpdateStatus: (id: string, status: TaskStatus) => void }) {
   const mine = tasks.filter((t) => t.assigneeId === CURRENT_USER_ID);

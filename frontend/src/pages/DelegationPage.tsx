@@ -1,8 +1,9 @@
 // Halaman Delegasi mockup: form delegasi + riwayat delegasi.
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import type { Task } from '../data/mockData';
-import { ROLE_LABELS, history, userName, users } from '../data/mockData';
+import type { Task } from '../interfaces/types';
+import { ROLE_LABELS, history, users } from '../data/mockData';
+import { userName } from '../utils/helpers';
 import {
   btnYellowClass,
   cardClass,
@@ -15,7 +16,7 @@ import {
   stackClass,
   timelineDateClass,
   timelineItemClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 export function DelegationPage({ tasks, onDelegate }: { tasks: Task[]; onDelegate: (taskId: string, assigneeId: string) => void }) {
   const [taskId, setTaskId] = useState(tasks[0]?.id ?? '');

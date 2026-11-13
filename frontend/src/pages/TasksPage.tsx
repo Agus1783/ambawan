@@ -1,14 +1,12 @@
-// Halaman Daftar Task mockup: cari + filter status/prioritas/divisi + pagination.
-// Klik baris untuk membuka detail task.
-// Tombol "Tambah Tugas" hanya untuk ADMIN, MANAGER, dan DIVISION_LEADER
-// (MEMBER tidak bisa membuat task). Task baru masuk ke state lokal
-// lewat onAddTask; nanti disambungkan ke POST /tasks (spec §12).
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import type { Priority, Project, RoleName, Task, TaskStatus } from '../data/mockData';
-import { STATUS_LABELS, divisions, isOverdue, projectName, userName, users } from '../data/mockData';
-import { Chip, StatusChip } from '../components/mockup/Chip';
-import { Modal } from '../components/mockup/Modal';
+import type { Priority, Project, RoleName, Task, TaskStatus } from '../interfaces/types';
+import { STATUS_LABELS, divisions, users } from '../data/mockData';
+import { isOverdue, projectName, userName } from '../utils/helpers';
+// import type { Priority, Project, RoleName, Task, TaskStatus } from '../data/mockData';
+// import { STATUS_LABELS, divisions, isOverdue, projectName, userName, users } from '../data/mockData';
+import { Chip, StatusChip } from '../components/ui/Chip';
+import { Modal } from '../components/ui/Modal';
 import {
   btnClass,
   btnYellowClass,
@@ -22,7 +20,7 @@ import {
   stackClass,
   tableTdClass,
   tableThClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 const PAGE_SIZE = 6;
 

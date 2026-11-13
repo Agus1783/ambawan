@@ -1,11 +1,12 @@
 // Dashboard mockup: statistik, donat progres, milestone roadmap,
 // bar chart mingguan, dan progres per divisi.
-import type { Task } from '../data/mockData';
-import { divisions, isOverdue, weeklyDone } from '../data/mockData';
-import { Donut } from '../components/mockup/Donut';
-import { ProgressBar } from '../components/mockup/ProgressBar';
-import { StatCard } from '../components/mockup/StatCard';
-import { WeekChart } from '../components/mockup/WeekChart';
+import type { Task } from '../interfaces/types';
+import { divisions, weeklyDone } from '../data/mockData';
+import { isOverdue } from '../utils/helpers';
+import { Donut } from '../components/ui/Donut';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { StatCard } from '../components/ui/StatCard';
+import { WeekChart } from '../components/ui/WeekChart';
 import {
   cardBaseClass,
   cardClass,
@@ -16,8 +17,8 @@ import {
   sectionLabelClass,
   sectionTitleClass,
   stackClass,
-} from '../components/mockup/UiClasses';
-import { Chip } from '../components/mockup/Chip';
+} from '../components/ui/UiClasses';
+import { Chip } from '../components/ui/Chip';
 
 export function DashboardPage({ tasks }: { tasks: Task[] }) {
   const total = tasks.length;

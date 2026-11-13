@@ -1,6 +1,6 @@
 // Chip status neo-brutalist (dipakai di tabel task, detail, organisasi).
 import type { ReactNode } from 'react';
-import type { TaskStatus } from '../../data/mockData';
+import type { TaskStatus } from '../../interfaces/types';
 import { STATUS_CHIP, STATUS_LABELS } from '../../data/mockData';
 
 export function Chip({ className = '', children }: { className?: string; children: ReactNode }) {

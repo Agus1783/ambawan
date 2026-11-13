@@ -2,19 +2,16 @@
 // timeline riwayat, dan komentar.
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import type { Task, TaskStatus } from '../data/mockData';
+import type { Task, TaskStatus } from '../interfaces/types';
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
   CURRENT_USER_ID,
   attachments,
-  divisionName,
-  formatFileSize,
   history,
-  projectName,
-  userName,
 } from '../data/mockData';
-import { Chip, StatusChip } from '../components/mockup/Chip';
+import { divisionName, formatFileSize, projectName, userName } from '../utils/helpers';
+import { Chip, StatusChip } from '../components/ui/Chip';
 import {
   btnBlueClass,
   btnClass,
@@ -30,7 +27,7 @@ import {
   stackClass,
   timelineDateClass,
   timelineItemClass,
-} from '../components/mockup/UiClasses';
+} from '../components/ui/UiClasses';
 
 export function TaskDetailPage({
   task,
