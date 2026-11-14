@@ -7,14 +7,23 @@ import { fileURLToPath } from 'node:url';
 const backendDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const EXPECTED_MODELS = [
-  'Roles',
   'Users',
+  'Industries',
+  'Workspaces',
+  'WorkspaceRoles',
+  'RolePermissions',
+  'WorkspaceMemberships',
   'Divisions',
+  'ProjectTemplates',
   'Projects',
+  'TaskTemplates',
   'Tasks',
   'TaskHistory',
   'TaskAttachments',
+  'TaskComments',
+  'Invitations',
 ];
+
 
 describe('artefak prisma contract', () => {
   it('contract.prisma mendeklarasikan ke-7 model', () => {

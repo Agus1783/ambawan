@@ -10,9 +10,7 @@
     "module": "preserve",
     "target": "es2022",
     // "moduleResolution": "nodenext",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "lib": ["es2022"],
     "outDir": "./dist",
     "rootDir": "./",
@@ -49,5 +47,9 @@
     "resolveJsonModule": true,
     // "skipLibCheck": true,
   },
-  "include": ["src/**/*", "prisma", "tests/**/*"]
+  "include": ["src/**/*", "prisma", "tests/**/*"],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
+  },
 }

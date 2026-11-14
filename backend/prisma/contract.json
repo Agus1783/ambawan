@@ -32,6 +32,10 @@
       "model": "TaskAttachments",
       "namespace": "public"
     },
+    "task_comments": {
+      "model": "TaskComments",
+      "namespace": "public"
+    },
     "task_history": {
       "model": "TaskHistory",
       "namespace": "public"
@@ -1173,6 +1177,119 @@
               "table": "task_attachments"
             }
           },
+          "TaskComments": {
+            "fields": {
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "taskId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              }
+            },
+            "relations": {
+              "task": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "taskId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Tasks",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "content": {
+                  "column": "content"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "taskId": {
+                  "column": "task_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "userId": {
+                  "column": "user_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "task_comments"
+            }
+          },
           "TaskHistory": {
             "fields": {
               "action": {
@@ -1680,6 +1797,21 @@
                   "namespace": "public"
                 }
               },
+              "taskComments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "taskId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskComments",
+                  "namespace": "public"
+                }
+              },
               "taskHistories": {
                 "cardinality": "1:N",
                 "on": {
@@ -1945,6 +2077,21 @@
                 },
                 "to": {
                   "model": "TaskAttachments",
+                  "namespace": "public"
+                }
+              },
+              "taskComments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskComments",
                   "namespace": "public"
                 }
               },
@@ -3585,6 +3732,124 @@
               },
               "uniques": []
             },
+            "task_comments": {
+              "columns": {
+                "content": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "task_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "user_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "idx_task_comments_task_id"
+                  },
+                  "name": "fk_comment_task",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "task_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_comments"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "tasks"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_task_comments_user_id"
+                  },
+                  "name": "fk_comment_user",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_comments"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "task_id"
+                  ],
+                  "name": "idx_task_comments_task_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "user_id"
+                  ],
+                  "name": "idx_task_comments_user_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "task_comments_pkey"
+              },
+              "uniques": []
+            },
             "task_history": {
               "columns": {
                 "action": {
@@ -4718,7 +4983,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "eff4ae7e741e5f4c1fc53e63707cfed72aa334826fcee4c8ff30f37c45a70e99"
+    "storageHash": "56c22eb25c9441c00c0e069df5bdeb9742bc31a32a6190bc32c6491047ed9ce3"
   },
   "capabilities": {
     "postgres": {

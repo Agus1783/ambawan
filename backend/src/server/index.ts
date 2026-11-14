@@ -1,43 +1,23 @@
 import 'dotenv/config';
 import express from 'express';
-import type { Application, Request, Response, NextFunction } from 'express';
-import multer from 'multer';
-// import routes from '../routes/index';
-// import ErrorHandler from '../midlewares/error';
+import type { Application } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import routes from '../routes/index';
+import ErrorHandler from '../middlewares/error';
+import { errorResponse } from '../utils/response';
 
 const app: Application = express();
 
+app.use(helmet());
+app.use(cors());
 app.use(express.json());
-// app.use(routes);
-// app.use(ErrorHandler);
+app.use('/api/v1', routes);
 
-app.use((error: any, req: Request, res: Response, next: NextFunction) => {
-  if (error instanceof multer.MulterError) {
-    return res.status(400).json({
-      code: 400,
-      status: "failed",
-      message: error.message,
-      data: null
-    });
-  }
-
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({
-      code: error.statusCode,
-      status: "failed",
-      message: error.message,
-      data: null
-    });
-  }
-
-  console.error(error);
-
-  return res.status(500).json({
-    code: 500,
-    status: "failed",
-    message: "Internal Server Error",
-    data: null
-  });
+// Route yang tidak dikenal -> 404 envelope spec v2 §4.2
+app.use((_req, res): void => {
+  errorResponse(res, 'Resource tidak ditemukan', 'NOT_FOUND', null, 404);
 });
+app.use(ErrorHandler);
 
 export default app;

@@ -503,7 +503,33 @@ CREATE TABLE task_attachments (
 
 
 -- =========================================================
--- 14. INVITATIONS (undangan lewat email)
+-- 14. TASK COMMENTS
+-- =========================================================
+
+CREATE TABLE task_comments (
+    id VARCHAR(26) PRIMARY KEY,
+
+    task_id VARCHAR(26) NOT NULL,
+    user_id VARCHAR(26) NOT NULL,
+
+    content TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_comment_task
+        FOREIGN KEY (task_id)
+        REFERENCES tasks(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_comment_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================================================
+-- 15. INVITATIONS (undangan lewat email)
 -- =========================================================
 
 CREATE TABLE invitations (
@@ -558,7 +584,7 @@ CREATE TABLE invitations (
 
 
 -- =========================================================
--- 15. INDEX
+-- 16. INDEX
 -- =========================================================
 
 CREATE INDEX idx_users_google_id
@@ -639,6 +665,12 @@ ON task_history(user_id);
 CREATE INDEX idx_task_attachments_task_id
 ON task_attachments(task_id);
 
+CREATE INDEX idx_task_comments_task_id
+ON task_comments(task_id);
+
+CREATE INDEX idx_task_comments_user_id
+ON task_comments(user_id);
+
 CREATE INDEX idx_invitations_workspace_id
 ON invitations(workspace_id);
 
@@ -656,7 +688,7 @@ ON invitations(status);
 
 
 -- =========================================================
--- 16. UPDATED_AT TRIGGER
+-- 17. UPDATED_AT TRIGGER
 -- =========================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -725,7 +757,7 @@ EXECUTE FUNCTION update_updated_at();
 
 
 -- =========================================================
--- 17. SEED — DATA SISTEM (contoh)
+-- 18. SEED — DATA SISTEM (contoh)
 -- =========================================================
 -- Baris-baris di bawah ini di-seed oleh aplikasi saat
 -- pertama kali berjalan. Owner workspace boleh menambah
