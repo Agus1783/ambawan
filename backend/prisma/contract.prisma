@@ -1,65 +1,195 @@
 // use prisma-8
 // Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
-model Roles {
-  id          VarChar(26)       @id(map: "roles_pkey")
-  name        VarChar(50)       @unique(map: "roles_name_key")
-  description String?
-  createdAt   TimestamptzString @default(now()) @map("created_at")
-  updatedAt   TimestamptzString @default(now()) @map("updated_at")
-  users       Users[]
-
-  @@map("roles")
-}
-
 model Users {
-  id              VarChar(26)       @id(map: "users_pkey")
-  name            VarChar(100)
-  email           VarChar(255)      @unique(map: "users_email_key")
-  password        VarChar(255)
-  roleId          VarChar(26)       @map("role_id")
-  divisionId      VarChar(26)?      @map("division_id")
-  createdAt       TimestamptzString @default(now()) @map("created_at")
-  updatedAt       TimestamptzString @default(now()) @map("updated_at")
-  divisions       Divisions[]
-  taskAttachments TaskAttachments[]
-  taskHistories   TaskHistory[]
-  tasks           Tasks[]
-  division        Divisions?        @relation(fields: [divisionId], references: [id], onDelete: SetNull, map: "fk_user_division")
-  role            Roles             @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_user_role")
+  id                   VarChar(26)            @id(map: "users_pkey")
+  name                 VarChar(100)
+  email                VarChar(255)           @unique(map: "users_email_key")
+  password             VarChar(255)?
+  googleId             VarChar(255)?          @unique(map: "users_google_id_key") @map("google_id")
+  authProvider         VarChar(10)            @default("EMAIL") @map("auth_provider")
+  onboardingCompleted  Boolean                @default(false) @map("onboarding_completed")
+  createdAt            TimestamptzString      @default(now()) @map("created_at")
+  updatedAt            TimestamptzString      @default(now()) @map("updated_at")
+  divisions            Divisions[]
+  industries           Industries[]
+  invitations          Invitations[]
+  projectTemplates     ProjectTemplates[]
+  projects             Projects[]
+  taskAttachments      TaskAttachments[]
+  taskHistories        TaskHistory[]
+  tasks                Tasks[]
+  workspaceMemberships WorkspaceMemberships[]
+  workspaceRoles       WorkspaceRoles[]
+  workspaces           Workspaces?
 
-  @@index([divisionId], map: "idx_users_division_id")
-  @@index([roleId], map: "idx_users_role_id")
+  @@index([authProvider], map: "idx_users_auth_provider")
+  @@index([googleId], map: "idx_users_google_id")
+  @@check(expression: "((((auth_provider)::text = 'GOOGLE'::text) OR (password IS NOT NULL)) AND (((auth_provider)::text = 'EMAIL'::text) OR (google_id IS NOT NULL)))", map: "chk_auth_credentials")
+  @@check(expression: "((auth_provider)::text = ANY ((ARRAY['EMAIL'::character varying, 'GOOGLE'::character varying])::text[]))", map: "chk_auth_provider")
   @@map("users")
 }
 
-model Divisions {
-  id        VarChar(26)       @id(map: "divisions_pkey")
-  name      VarChar(100)      @unique(map: "divisions_name_key")
-  leaderId  VarChar(26)?      @map("leader_id")
-  createdAt TimestamptzString @default(now()) @map("created_at")
-  updatedAt TimestamptzString @default(now()) @map("updated_at")
-  tasks     Tasks[]
-  users     Users[]
-  leader    Users?            @relation(fields: [leaderId], references: [id], onDelete: SetNull, map: "fk_division_leader", index: false)
+model Industries {
+  id               VarChar(26)        @id(map: "industries_pkey")
+  name             VarChar(100)
+  description      String?
+  createdBy        VarChar(26)?       @map("created_by")
+  createdAt        TimestamptzString  @default(now()) @map("created_at")
+  updatedAt        TimestamptzString  @default(now()) @map("updated_at")
+  projectTemplates ProjectTemplates[]
+  projects         Projects[]
+  workspaces       Workspaces[]
+  users            Users?             @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "fk_industry_creator", index: false)
 
+  @@unique([name, createdBy], map: "uq_industry_name_creator")
+  @@map("industries")
+}
+
+model Workspaces {
+  id                   VarChar(26)            @id(map: "workspaces_pkey")
+  name                 VarChar(150)
+  industryId           VarChar(26)?           @map("industry_id")
+  ownerId              VarChar(26)            @unique(map: "uq_workspace_owner") @map("owner_id")
+  createdAt            TimestamptzString      @default(now()) @map("created_at")
+  updatedAt            TimestamptzString      @default(now()) @map("updated_at")
+  divisions            Divisions[]
+  invitations          Invitations[]
+  projectTemplates     ProjectTemplates[]
+  projects             Projects[]
+  tasks                Tasks[]
+  workspaceMemberships WorkspaceMemberships[]
+  workspaceRoles       WorkspaceRoles[]
+  industry             Industries?            @relation(fields: [industryId], references: [id], onDelete: SetNull, map: "fk_workspace_industry")
+  owner                Users                  @relation(fields: [ownerId], references: [id], onDelete: Restrict, map: "fk_workspace_owner")
+
+  @@index([industryId], map: "idx_workspaces_industry_id")
+  @@index([ownerId], map: "idx_workspaces_owner_id")
+  @@map("workspaces")
+}
+
+model Divisions {
+  id          VarChar(26)       @id(map: "divisions_pkey")
+  workspaceId VarChar(26)       @map("workspace_id")
+  name        VarChar(100)
+  leaderId    VarChar(26)?      @map("leader_id")
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+  updatedAt   TimestamptzString @default(now()) @map("updated_at")
+  tasks       Tasks[]
+  leader      Users?            @relation(fields: [leaderId], references: [id], onDelete: SetNull, map: "fk_division_leader", index: false)
+  workspace   Workspaces        @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_division_workspace")
+
+  @@unique([workspaceId, name], map: "uq_division_name_per_workspace")
+  @@index([workspaceId], map: "idx_divisions_workspace_id")
   @@map("divisions")
 }
 
-model Projects {
-  id          VarChar(26)        @id(map: "projects_pkey")
-  name        VarChar(150)
-  description String?
-  deadline    TimestamptzString?
-  createdAt   TimestamptzString  @default(now()) @map("created_at")
-  updatedAt   TimestamptzString  @default(now()) @map("updated_at")
-  tasks       Tasks[]
+model ProjectTemplates {
+  id            VarChar(26)       @id(map: "project_templates_pkey")
+  industryId    VarChar(26)?      @map("industry_id")
+  workspaceId   VarChar(26)?      @map("workspace_id")
+  name          VarChar(150)
+  description   String?
+  createdBy     VarChar(26)?      @map("created_by")
+  createdAt     TimestamptzString @default(now()) @map("created_at")
+  updatedAt     TimestamptzString @default(now()) @map("updated_at")
+  projects      Projects[]
+  taskTemplates TaskTemplates[]
+  users         Users?            @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "fk_project_template_creator", index: false)
+  industry      Industries?       @relation(fields: [industryId], references: [id], onDelete: SetNull, map: "fk_project_template_industry")
+  workspace     Workspaces?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_project_template_workspace")
 
+  @@index([industryId], map: "idx_project_templates_industry_id")
+  @@index([workspaceId], map: "idx_project_templates_workspace_id")
+  @@map("project_templates")
+}
+
+model Projects {
+  id                VarChar(26)        @id(map: "projects_pkey")
+  workspaceId       VarChar(26)        @map("workspace_id")
+  name              VarChar(150)
+  description       String?
+  deadline          TimestamptzString?
+  ownerId           VarChar(26)        @map("owner_id")
+  industryId        VarChar(26)?       @map("industry_id")
+  projectTemplateId VarChar(26)?       @map("project_template_id")
+  createdAt         TimestamptzString  @default(now()) @map("created_at")
+  updatedAt         TimestamptzString  @default(now()) @map("updated_at")
+  invitations       Invitations[]
+  tasks             Tasks[]
+  industry          Industries?        @relation(fields: [industryId], references: [id], onDelete: SetNull, map: "fk_project_industry", index: false)
+  owner             Users              @relation(fields: [ownerId], references: [id], onDelete: Restrict, map: "fk_project_owner")
+  projectTemplate   ProjectTemplates?  @relation(fields: [projectTemplateId], references: [id], onDelete: SetNull, map: "fk_project_template", index: false)
+  workspace         Workspaces         @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_project_workspace")
+
+  @@index([ownerId], map: "idx_projects_owner_id")
+  @@index([workspaceId], map: "idx_projects_workspace_id")
   @@map("projects")
+}
+
+model WorkspaceRoles {
+  id                   VarChar(26)            @id(map: "workspace_roles_pkey")
+  workspaceId          VarChar(26)?           @map("workspace_id")
+  name                 VarChar(100)
+  description          String?
+  isSystem             Boolean                @default(false) @map("is_system")
+  createdBy            VarChar(26)?           @map("created_by")
+  createdAt            TimestamptzString      @default(now()) @map("created_at")
+  updatedAt            TimestamptzString      @default(now()) @map("updated_at")
+  invitations          Invitations[]
+  rolePermissions      RolePermissions[]
+  workspaceMemberships WorkspaceMemberships[]
+  users                Users?                 @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "fk_workspace_role_creator", index: false)
+  workspace            Workspaces?            @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_workspace_role_workspace")
+
+  @@unique([workspaceId, name], map: "uq_workspace_role_name")
+  @@index([workspaceId], map: "idx_workspace_roles_workspace_id")
+  @@check(expression: "(((is_system = true) AND (workspace_id IS NULL)) OR ((is_system = false) AND (workspace_id IS NOT NULL)))", map: "chk_workspace_role_system")
+  @@map("workspace_roles")
+}
+
+model Invitations {
+  id          VarChar(26)       @id(map: "invitations_pkey")
+  workspaceId VarChar(26)       @map("workspace_id")
+  projectId   VarChar(26)?      @map("project_id")
+  email       VarChar(255)
+  roleId      VarChar(26)       @map("role_id")
+  invitedBy   VarChar(26)       @map("invited_by")
+  token       VarChar(64)       @unique(map: "invitations_token_key")
+  status      VarChar(20)       @default("PENDING")
+  expiresAt   TimestamptzString @map("expires_at")
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+  updatedAt   TimestamptzString @default(now()) @map("updated_at")
+  users       Users             @relation(fields: [invitedBy], references: [id], onDelete: Cascade, map: "fk_invitation_inviter", index: false)
+  project     Projects?         @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_invitation_project", index: false)
+  role        WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_invitation_role")
+  workspace   Workspaces        @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_invitation_workspace")
+
+  @@index([email], map: "idx_invitations_email")
+  @@index([roleId], map: "idx_invitations_role_id")
+  @@index([status], map: "idx_invitations_status")
+  @@index([token], map: "idx_invitations_token")
+  @@index([workspaceId], map: "idx_invitations_workspace_id")
+  @@check(expression: "((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'EXPIRED'::character varying, 'DECLINED'::character varying])::text[]))", map: "chk_invitation_status")
+  @@map("invitations")
+}
+
+model RolePermissions {
+  id         VarChar(26)       @id(map: "role_permissions_pkey")
+  roleId     VarChar(26)       @map("role_id")
+  permission VarChar(50)
+  createdAt  TimestamptzString @default(now()) @map("created_at")
+  role       WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Cascade, map: "fk_role_permission_role")
+
+  @@unique([roleId, permission], map: "uq_role_permission")
+  @@index([roleId], map: "idx_role_permissions_role_id")
+  @@check(expression: "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))", map: "chk_role_permission_catalog")
+  @@map("role_permissions")
 }
 
 model Tasks {
   id              VarChar(26)        @id(map: "tasks_pkey")
+  workspaceId     VarChar(26)        @map("workspace_id")
   projectId       VarChar(26)        @map("project_id")
   parentTaskId    VarChar(26)?       @map("parent_task_id")
   title           VarChar(200)
@@ -78,6 +208,7 @@ model Tasks {
   parentTask      Tasks?             @relation(name: "fk_task_parent", fields: [parentTaskId], references: [id], onDelete: Cascade, map: "fk_task_parent")
   tasks           Tasks[]            @relation(name: "fk_task_parent")
   project         Projects           @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_task_project")
+  workspace       Workspaces         @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_task_workspace")
 
   @@index([assigneeId], map: "idx_tasks_assignee_id")
   @@index([deadline], map: "idx_tasks_deadline")
@@ -85,6 +216,7 @@ model Tasks {
   @@index([parentTaskId], map: "idx_tasks_parent_task_id")
   @@index([projectId], map: "idx_tasks_project_id")
   @@index([status], map: "idx_tasks_status")
+  @@index([workspaceId], map: "idx_tasks_workspace_id")
   @@check(expression: "((priority)::text = ANY ((ARRAY['P1'::character varying, 'P2'::character varying, 'P3'::character varying])::text[]))", map: "chk_task_priority")
   @@check(expression: "((status)::text = ANY ((ARRAY['BACKLOG'::character varying, 'ASSIGNED'::character varying, 'IN_PROGRESS'::character varying, 'REVIEW'::character varying, 'COMPLETED'::character varying, 'BLOCKED'::character varying, 'CANCELLED'::character varying])::text[]))", map: "chk_task_status")
   @@map("tasks")
@@ -121,4 +253,42 @@ model TaskHistory {
   @@index([taskId], map: "idx_task_history_task_id")
   @@index([userId], map: "idx_task_history_user_id")
   @@map("task_history")
+}
+
+model TaskTemplates {
+  id                VarChar(26)       @id(map: "task_templates_pkey")
+  projectTemplateId VarChar(26)       @map("project_template_id")
+  parentTemplateId  VarChar(26)?      @map("parent_template_id")
+  title             VarChar(200)
+  description       String?
+  priority          VarChar(10)       @default("P3")
+  sortOrder         Int               @default(0) @map("sort_order")
+  createdAt         TimestamptzString @default(now()) @map("created_at")
+  updatedAt         TimestamptzString @default(now()) @map("updated_at")
+  parentTemplate    TaskTemplates?    @relation(name: "fk_task_template_parent", fields: [parentTemplateId], references: [id], onDelete: Cascade, map: "fk_task_template_parent")
+  taskTemplates     TaskTemplates[]   @relation(name: "fk_task_template_parent")
+  projectTemplate   ProjectTemplates  @relation(fields: [projectTemplateId], references: [id], onDelete: Cascade, map: "fk_task_template_project")
+
+  @@index([parentTemplateId], map: "idx_task_templates_parent_id")
+  @@index([projectTemplateId], map: "idx_task_templates_project_id")
+  @@check(expression: "((priority)::text = ANY ((ARRAY['P1'::character varying, 'P2'::character varying, 'P3'::character varying])::text[]))", map: "chk_task_template_priority")
+  @@map("task_templates")
+}
+
+model WorkspaceMemberships {
+  id          VarChar(26)       @id(map: "workspace_memberships_pkey")
+  workspaceId VarChar(26)       @map("workspace_id")
+  userId      VarChar(26)       @map("user_id")
+  roleId      VarChar(26)       @map("role_id")
+  createdAt   TimestamptzString @default(now()) @map("created_at")
+  updatedAt   TimestamptzString @default(now()) @map("updated_at")
+  role        WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_membership_role")
+  user        Users             @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_membership_user")
+  workspace   Workspaces        @relation(fields: [workspaceId], references: [id], onDelete: Cascade, map: "fk_membership_workspace")
+
+  @@unique([workspaceId, userId], map: "uq_membership_workspace_user")
+  @@index([roleId], map: "idx_memberships_role_id")
+  @@index([userId], map: "idx_memberships_user_id")
+  @@index([workspaceId], map: "idx_memberships_workspace_id")
+  @@map("workspace_memberships")
 }

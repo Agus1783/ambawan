@@ -8,12 +8,24 @@
       "model": "Divisions",
       "namespace": "public"
     },
+    "industries": {
+      "model": "Industries",
+      "namespace": "public"
+    },
+    "invitations": {
+      "model": "Invitations",
+      "namespace": "public"
+    },
+    "project_templates": {
+      "model": "ProjectTemplates",
+      "namespace": "public"
+    },
     "projects": {
       "model": "Projects",
       "namespace": "public"
     },
-    "roles": {
-      "model": "Roles",
+    "role_permissions": {
+      "model": "RolePermissions",
       "namespace": "public"
     },
     "task_attachments": {
@@ -24,12 +36,28 @@
       "model": "TaskHistory",
       "namespace": "public"
     },
+    "task_templates": {
+      "model": "TaskTemplates",
+      "namespace": "public"
+    },
     "tasks": {
       "model": "Tasks",
       "namespace": "public"
     },
     "users": {
       "model": "Users",
+      "namespace": "public"
+    },
+    "workspace_memberships": {
+      "model": "WorkspaceMemberships",
+      "namespace": "public"
+    },
+    "workspace_roles": {
+      "model": "WorkspaceRoles",
+      "namespace": "public"
+    },
+    "workspaces": {
+      "model": "Workspaces",
       "namespace": "public"
     }
   },
@@ -82,6 +110,16 @@
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
+              },
+              "workspaceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
               }
             },
             "relations": {
@@ -116,18 +154,19 @@
                   "namespace": "public"
                 }
               },
-              "users": {
-                "cardinality": "1:N",
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
-                    "id"
+                    "workspaceId"
                   ],
                   "targetFields": [
-                    "divisionId"
+                    "id"
                   ]
                 },
                 "to": {
-                  "model": "Users",
+                  "model": "Workspaces",
                   "namespace": "public"
                 }
               }
@@ -148,10 +187,550 @@
                 },
                 "updatedAt": {
                   "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
                 }
               },
               "namespaceId": "public",
               "table": "divisions"
+            }
+          },
+          "Industries": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 100
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "projectTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "industryId"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectTemplates",
+                  "namespace": "public"
+                }
+              },
+              "projects": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "industryId"
+                  ]
+                },
+                "to": {
+                  "model": "Projects",
+                  "namespace": "public"
+                }
+              },
+              "users": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "createdBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "workspaces": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "industryId"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdBy": {
+                  "column": "created_by"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "industries"
+            }
+          },
+          "Invitations": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "email": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 255
+                  }
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "invitedBy": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "projectId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "roleId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 20
+                  }
+                }
+              },
+              "token": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 64
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "workspaceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              }
+            },
+            "relations": {
+              "project": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Projects",
+                  "namespace": "public"
+                }
+              },
+              "role": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "roleId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceRoles",
+                  "namespace": "public"
+                }
+              },
+              "users": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "invitedBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "email": {
+                  "column": "email"
+                },
+                "expiresAt": {
+                  "column": "expires_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "invitedBy": {
+                  "column": "invited_by"
+                },
+                "projectId": {
+                  "column": "project_id"
+                },
+                "roleId": {
+                  "column": "role_id"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "token": {
+                  "column": "token"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "invitations"
+            }
+          },
+          "ProjectTemplates": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "industryId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 150
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "workspaceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              }
+            },
+            "relations": {
+              "industry": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "industryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Industries",
+                  "namespace": "public"
+                }
+              },
+              "projects": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectTemplateId"
+                  ]
+                },
+                "to": {
+                  "model": "Projects",
+                  "namespace": "public"
+                }
+              },
+              "taskTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectTemplateId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplates",
+                  "namespace": "public"
+                }
+              },
+              "users": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "createdBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdBy": {
+                  "column": "created_by"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "industryId": {
+                  "column": "industry_id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "project_templates"
             }
           },
           "Projects": {
@@ -187,6 +766,16 @@
                   }
                 }
               },
+              "industryId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -197,15 +786,108 @@
                   }
                 }
               },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "projectTemplateId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
               "updatedAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
+              },
+              "workspaceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
               }
             },
             "relations": {
+              "industry": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "industryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Industries",
+                  "namespace": "public"
+                }
+              },
+              "invitations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "Invitations",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "projectTemplate": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "projectTemplateId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectTemplates",
+                  "namespace": "public"
+                }
+              },
               "tasks": {
                 "cardinality": "1:N",
                 "on": {
@@ -218,6 +900,22 @@
                 },
                 "to": {
                   "model": "Tasks",
+                  "namespace": "public"
+                }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
                   "namespace": "public"
                 }
               }
@@ -236,30 +934,35 @@
                 "id": {
                   "column": "id"
                 },
+                "industryId": {
+                  "column": "industry_id"
+                },
                 "name": {
                   "column": "name"
                 },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "projectTemplateId": {
+                  "column": "project_template_id"
+                },
                 "updatedAt": {
                   "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
                 }
               },
               "namespaceId": "public",
               "table": "projects"
             }
           },
-          "Roles": {
+          "RolePermissions": {
             "fields": {
               "createdAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
-                  "kind": "scalar"
-                }
-              },
-              "description": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -273,7 +976,7 @@
                   }
                 }
               },
-              "name": {
+              "permission": {
                 "nullable": false,
                 "type": {
                   "codecId": "sql/varchar@1",
@@ -283,27 +986,31 @@
                   }
                 }
               },
-              "updatedAt": {
+              "roleId": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "kind": "scalar"
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               }
             },
             "relations": {
-              "users": {
-                "cardinality": "1:N",
+              "role": {
+                "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
-                    "id"
+                    "roleId"
                   ],
                   "targetFields": [
-                    "roleId"
+                    "id"
                   ]
                 },
                 "to": {
-                  "model": "Users",
+                  "model": "WorkspaceRoles",
                   "namespace": "public"
                 }
               }
@@ -313,21 +1020,18 @@
                 "createdAt": {
                   "column": "created_at"
                 },
-                "description": {
-                  "column": "description"
-                },
                 "id": {
                   "column": "id"
                 },
-                "name": {
-                  "column": "name"
+                "permission": {
+                  "column": "permission"
                 },
-                "updatedAt": {
-                  "column": "updated_at"
+                "roleId": {
+                  "column": "role_id"
                 }
               },
               "namespaceId": "public",
-              "table": "roles"
+              "table": "role_permissions"
             }
           },
           "TaskAttachments": {
@@ -611,6 +1315,170 @@
               "table": "task_history"
             }
           },
+          "TaskTemplates": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "parentTemplateId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "priority": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 10
+                  }
+                }
+              },
+              "projectTemplateId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "sortOrder": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 200
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "parentTemplate": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "parentTemplateId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplates",
+                  "namespace": "public"
+                }
+              },
+              "projectTemplate": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "projectTemplateId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectTemplates",
+                  "namespace": "public"
+                }
+              },
+              "taskTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "parentTemplateId"
+                  ]
+                },
+                "to": {
+                  "model": "TaskTemplates",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "parentTemplateId": {
+                  "column": "parent_template_id"
+                },
+                "priority": {
+                  "column": "priority"
+                },
+                "projectTemplateId": {
+                  "column": "project_template_id"
+                },
+                "sortOrder": {
+                  "column": "sort_order"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "task_templates"
+            }
+          },
           "Tasks": {
             "fields": {
               "assigneeId": {
@@ -719,6 +1587,16 @@
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
+                }
+              },
+              "workspaceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               }
             },
@@ -831,6 +1709,22 @@
                   "model": "Tasks",
                   "namespace": "public"
                 }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -870,6 +1764,9 @@
                 },
                 "updatedAt": {
                   "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
                 }
               },
               "namespaceId": "public",
@@ -878,6 +1775,16 @@
           },
           "Users": {
             "fields": {
+              "authProvider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 10
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -885,18 +1792,18 @@
                   "kind": "scalar"
                 }
               },
-              "divisionId": {
-                "nullable": true,
+              "email": {
+                "nullable": false,
                 "type": {
                   "codecId": "sql/varchar@1",
                   "kind": "scalar",
                   "typeParams": {
-                    "length": 26
+                    "length": 255
                   }
                 }
               },
-              "email": {
-                "nullable": false,
+              "googleId": {
+                "nullable": true,
                 "type": {
                   "codecId": "sql/varchar@1",
                   "kind": "scalar",
@@ -925,23 +1832,20 @@
                   }
                 }
               },
-              "password": {
+              "onboardingCompleted": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "password": {
+                "nullable": true,
                 "type": {
                   "codecId": "sql/varchar@1",
                   "kind": "scalar",
                   "typeParams": {
                     "length": 255
-                  }
-                }
-              },
-              "roleId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "sql/varchar@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "length": 26
                   }
                 }
               },
@@ -954,22 +1858,6 @@
               }
             },
             "relations": {
-              "division": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "divisionId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Divisions",
-                  "namespace": "public"
-                }
-              },
               "divisions": {
                 "cardinality": "1:N",
                 "on": {
@@ -985,19 +1873,63 @@
                   "namespace": "public"
                 }
               },
-              "role": {
-                "cardinality": "N:1",
-                "nullable": false,
+              "industries": {
+                "cardinality": "1:N",
                 "on": {
                   "localFields": [
-                    "roleId"
+                    "id"
                   ],
                   "targetFields": [
-                    "id"
+                    "createdBy"
                   ]
                 },
                 "to": {
-                  "model": "Roles",
+                  "model": "Industries",
+                  "namespace": "public"
+                }
+              },
+              "invitations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "invitedBy"
+                  ]
+                },
+                "to": {
+                  "model": "Invitations",
+                  "namespace": "public"
+                }
+              },
+              "projectTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdBy"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectTemplates",
+                  "namespace": "public"
+                }
+              },
+              "projects": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "Projects",
                   "namespace": "public"
                 }
               },
@@ -1045,18 +1977,67 @@
                   "model": "Tasks",
                   "namespace": "public"
                 }
+              },
+              "workspaceMemberships": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceMemberships",
+                  "namespace": "public"
+                }
+              },
+              "workspaceRoles": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdBy"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceRoles",
+                  "namespace": "public"
+                }
+              },
+              "workspaces": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerId"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
               "fields": {
+                "authProvider": {
+                  "column": "auth_provider"
+                },
                 "createdAt": {
                   "column": "created_at"
                 },
-                "divisionId": {
-                  "column": "division_id"
-                },
                 "email": {
                   "column": "email"
+                },
+                "googleId": {
+                  "column": "google_id"
                 },
                 "id": {
                   "column": "id"
@@ -1064,11 +2045,11 @@
                 "name": {
                   "column": "name"
                 },
+                "onboardingCompleted": {
+                  "column": "onboarding_completed"
+                },
                 "password": {
                   "column": "password"
-                },
-                "roleId": {
-                  "column": "role_id"
                 },
                 "updatedAt": {
                   "column": "updated_at"
@@ -1076,6 +2057,540 @@
               },
               "namespaceId": "public",
               "table": "users"
+            }
+          },
+          "WorkspaceMemberships": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "roleId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "workspaceId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              }
+            },
+            "relations": {
+              "role": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "roleId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceRoles",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "roleId": {
+                  "column": "role_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "userId": {
+                  "column": "user_id"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "workspace_memberships"
+            }
+          },
+          "WorkspaceRoles": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "isSystem": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 100
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "workspaceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              }
+            },
+            "relations": {
+              "invitations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "roleId"
+                  ]
+                },
+                "to": {
+                  "model": "Invitations",
+                  "namespace": "public"
+                }
+              },
+              "rolePermissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "roleId"
+                  ]
+                },
+                "to": {
+                  "model": "RolePermissions",
+                  "namespace": "public"
+                }
+              },
+              "users": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "createdBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "workspace": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "workspaceId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Workspaces",
+                  "namespace": "public"
+                }
+              },
+              "workspaceMemberships": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "roleId"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceMemberships",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "createdBy": {
+                  "column": "created_by"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isSystem": {
+                  "column": "is_system"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "workspaceId": {
+                  "column": "workspace_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "workspace_roles"
+            }
+          },
+          "Workspaces": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "industryId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 150
+                  }
+                }
+              },
+              "ownerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/varchar@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "divisions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "Divisions",
+                  "namespace": "public"
+                }
+              },
+              "industry": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "industryId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Industries",
+                  "namespace": "public"
+                }
+              },
+              "invitations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "Invitations",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "ownerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Users",
+                  "namespace": "public"
+                }
+              },
+              "projectTemplates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectTemplates",
+                  "namespace": "public"
+                }
+              },
+              "projects": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "Projects",
+                  "namespace": "public"
+                }
+              },
+              "tasks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "Tasks",
+                  "namespace": "public"
+                }
+              },
+              "workspaceMemberships": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceMemberships",
+                  "namespace": "public"
+                }
+              },
+              "workspaceRoles": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "workspaceId"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceRoles",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "industryId": {
+                  "column": "industry_id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "ownerId": {
+                  "column": "owner_id"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                }
+              },
+              "namespaceId": "public",
+              "table": "workspaces"
             }
           }
         }
@@ -1130,6 +2645,14 @@
                     "kind": "function"
                   },
                   "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               },
               "foreignKeys": [
@@ -1150,9 +2673,38 @@
                     "namespaceId": "public",
                     "tableName": "users"
                   }
+                },
+                {
+                  "index": {
+                    "name": "idx_divisions_workspace_id"
+                  },
+                  "name": "fk_division_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "divisions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_divisions_workspace_id",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -1162,11 +2714,483 @@
               "uniques": [
                 {
                   "columns": [
+                    "workspace_id",
                     "name"
                   ],
-                  "name": "divisions_name_key"
+                  "name": "uq_division_name_per_workspace"
                 }
               ]
+            },
+            "industries": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "created_by": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 100
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "fk_industry_creator",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "created_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "industries"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "industries_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "name",
+                    "created_by"
+                  ],
+                  "name": "uq_industry_name_creator"
+                }
+              ]
+            },
+            "invitations": {
+              "checks": [
+                {
+                  "expression": "((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'EXPIRED'::character varying, 'DECLINED'::character varying])::text[]))",
+                  "name": "chk_invitation_status"
+                }
+              ],
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "email": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 255
+                  }
+                },
+                "expires_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "invited_by": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "project_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "role_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "status": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 20
+                  }
+                },
+                "token": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 64
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "fk_invitation_inviter",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "invited_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "invitations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "name": "fk_invitation_project",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "project_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "invitations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_invitations_role_id"
+                  },
+                  "name": "fk_invitation_role",
+                  "onDelete": "restrict",
+                  "source": {
+                    "columns": [
+                      "role_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "invitations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_roles"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_invitations_workspace_id"
+                  },
+                  "name": "fk_invitation_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "invitations"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "email"
+                  ],
+                  "name": "idx_invitations_email",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "role_id"
+                  ],
+                  "name": "idx_invitations_role_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "idx_invitations_status",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "token"
+                  ],
+                  "name": "idx_invitations_token",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_invitations_workspace_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "invitations_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "token"
+                  ],
+                  "name": "invitations_token_key"
+                }
+              ]
+            },
+            "project_templates": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "created_by": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "industry_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 150
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "fk_project_template_creator",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "created_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_templates"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_project_templates_industry_id"
+                  },
+                  "name": "fk_project_template_industry",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "industry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_templates"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "industries"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_project_templates_workspace_id"
+                  },
+                  "name": "fk_project_template_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_templates"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "industry_id"
+                  ],
+                  "name": "idx_project_templates_industry_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_project_templates_workspace_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "project_templates_pkey"
+              },
+              "uniques": []
             },
             "projects": {
               "columns": {
@@ -1197,12 +3221,36 @@
                     "length": 26
                   }
                 },
+                "industry_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
                 "name": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
                   "nullable": false,
                   "typeParams": {
                     "length": 150
+                  }
+                },
+                "owner_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "project_template_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
                   }
                 },
                 "updated_at": {
@@ -1213,10 +3261,112 @@
                     "kind": "function"
                   },
                   "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "name": "fk_project_industry",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "industry_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "industries"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_projects_owner_id"
+                  },
+                  "name": "fk_project_owner",
+                  "onDelete": "restrict",
+                  "source": {
+                    "columns": [
+                      "owner_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "name": "fk_project_template",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "project_template_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_templates"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_projects_workspace_id"
+                  },
+                  "name": "fk_project_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "owner_id"
+                  ],
+                  "name": "idx_projects_owner_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_projects_workspace_id",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -1225,7 +3375,13 @@
               },
               "uniques": []
             },
-            "roles": {
+            "role_permissions": {
+              "checks": [
+                {
+                  "expression": "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))",
+                  "name": "chk_role_permission_catalog"
+                }
+              ],
               "columns": {
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -1236,11 +3392,6 @@
                   },
                   "nullable": false
                 },
-                "description": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "id": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
@@ -1249,7 +3400,7 @@
                     "length": 26
                   }
                 },
-                "name": {
+                "permission": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
                   "nullable": false,
@@ -1257,30 +3408,60 @@
                     "length": 50
                   }
                 },
-                "updated_at": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false
+                "role_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "idx_role_permissions_role_id"
+                  },
+                  "name": "fk_role_permission_role",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "role_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "role_permissions"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_roles"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "role_id"
+                  ],
+                  "name": "idx_role_permissions_role_id",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
                 ],
-                "name": "roles_pkey"
+                "name": "role_permissions_pkey"
               },
               "uniques": [
                 {
                   "columns": [
-                    "name"
+                    "role_id",
+                    "permission"
                   ],
-                  "name": "roles_name_key"
+                  "name": "uq_role_permission"
                 }
               ]
             },
@@ -1537,6 +3718,159 @@
               },
               "uniques": []
             },
+            "task_templates": {
+              "checks": [
+                {
+                  "expression": "((priority)::text = ANY ((ARRAY['P1'::character varying, 'P2'::character varying, 'P3'::character varying])::text[]))",
+                  "name": "chk_task_template_priority"
+                }
+              ],
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "parent_template_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "priority": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "default": {
+                    "kind": "literal",
+                    "value": "P3"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 10
+                  }
+                },
+                "project_template_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "sort_order": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 200
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "idx_task_templates_parent_id"
+                  },
+                  "name": "fk_task_template_parent",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "parent_template_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_templates"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_templates"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_task_templates_project_id"
+                  },
+                  "name": "fk_task_template_project",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "project_template_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "task_templates"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_templates"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "parent_template_id"
+                  ],
+                  "name": "idx_task_templates_parent_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "project_template_id"
+                  ],
+                  "name": "idx_task_templates_project_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "task_templates_pkey"
+              },
+              "uniques": []
+            },
             "tasks": {
               "checks": [
                 {
@@ -1648,6 +3982,14 @@
                     "kind": "function"
                   },
                   "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
                 }
               },
               "foreignKeys": [
@@ -1734,6 +4076,27 @@
                     "namespaceId": "public",
                     "tableName": "projects"
                   }
+                },
+                {
+                  "index": {
+                    "name": "idx_tasks_workspace_id"
+                  },
+                  "name": "fk_task_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "tasks"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
                 }
               ],
               "indexes": [
@@ -1778,6 +4141,13 @@
                   ],
                   "name": "idx_tasks_status",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_tasks_workspace_id",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -1789,7 +4159,29 @@
               "uniques": []
             },
             "users": {
+              "checks": [
+                {
+                  "expression": "((((auth_provider)::text = 'GOOGLE'::text) OR (password IS NOT NULL)) AND (((auth_provider)::text = 'EMAIL'::text) OR (google_id IS NOT NULL)))",
+                  "name": "chk_auth_credentials"
+                },
+                {
+                  "expression": "((auth_provider)::text = ANY ((ARRAY['EMAIL'::character varying, 'GOOGLE'::character varying])::text[]))",
+                  "name": "chk_auth_provider"
+                }
+              ],
               "columns": {
+                "auth_provider": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "default": {
+                    "kind": "literal",
+                    "value": "EMAIL"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 10
+                  }
+                },
                 "created_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
@@ -1799,18 +4191,18 @@
                   },
                   "nullable": false
                 },
-                "division_id": {
-                  "codecId": "sql/varchar@1",
-                  "dataType": "pg/varchar",
-                  "nullable": true,
-                  "typeParams": {
-                    "length": 26
-                  }
-                },
                 "email": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
                   "nullable": false,
+                  "typeParams": {
+                    "length": 255
+                  }
+                },
+                "google_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
                   "typeParams": {
                     "length": 255
                   }
@@ -1831,15 +4223,403 @@
                     "length": 100
                   }
                 },
+                "onboarding_completed": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
                 "password": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
-                  "nullable": false,
+                  "nullable": true,
                   "typeParams": {
                     "length": 255
                   }
                 },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "auth_provider"
+                  ],
+                  "name": "idx_users_auth_provider",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "google_id"
+                  ],
+                  "name": "idx_users_google_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "users_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "email"
+                  ],
+                  "name": "users_email_key"
+                },
+                {
+                  "columns": [
+                    "google_id"
+                  ],
+                  "name": "users_google_id_key"
+                }
+              ]
+            },
+            "workspace_memberships": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
                 "role_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "user_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "idx_memberships_role_id"
+                  },
+                  "name": "fk_membership_role",
+                  "onDelete": "restrict",
+                  "source": {
+                    "columns": [
+                      "role_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_memberships"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_roles"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_memberships_user_id"
+                  },
+                  "name": "fk_membership_user",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_memberships"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_memberships_workspace_id"
+                  },
+                  "name": "fk_membership_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_memberships"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "role_id"
+                  ],
+                  "name": "idx_memberships_role_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "user_id"
+                  ],
+                  "name": "idx_memberships_user_id",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_memberships_workspace_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "workspace_memberships_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "workspace_id",
+                    "user_id"
+                  ],
+                  "name": "uq_membership_workspace_user"
+                }
+              ]
+            },
+            "workspace_roles": {
+              "checks": [
+                {
+                  "expression": "(((is_system = true) AND (workspace_id IS NULL)) OR ((is_system = false) AND (workspace_id IS NOT NULL)))",
+                  "name": "chk_workspace_role_system"
+                }
+              ],
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "created_by": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "is_system": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 100
+                  }
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "workspace_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "fk_workspace_role_creator",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "created_by"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_roles"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "idx_workspace_roles_workspace_id"
+                  },
+                  "name": "fk_workspace_role_workspace",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "workspace_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspace_roles"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "workspaces"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "workspace_id"
+                  ],
+                  "name": "idx_workspace_roles_workspace_id",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ],
+                "name": "workspace_roles_pkey"
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "workspace_id",
+                    "name"
+                  ],
+                  "name": "uq_workspace_role_name"
+                }
+              ]
+            },
+            "workspaces": {
+              "columns": {
+                "created_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "industry_id": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 26
+                  }
+                },
+                "name": {
+                  "codecId": "sql/varchar@1",
+                  "dataType": "pg/varchar",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 150
+                  }
+                },
+                "owner_id": {
                   "codecId": "sql/varchar@1",
                   "dataType": "pg/varchar",
                   "nullable": false,
@@ -1860,60 +4640,60 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "idx_users_division_id"
+                    "name": "idx_workspaces_industry_id"
                   },
-                  "name": "fk_user_division",
+                  "name": "fk_workspace_industry",
                   "onDelete": "setNull",
                   "source": {
                     "columns": [
-                      "division_id"
+                      "industry_id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "users"
+                    "tableName": "workspaces"
                   },
                   "target": {
                     "columns": [
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "divisions"
+                    "tableName": "industries"
                   }
                 },
                 {
                   "index": {
-                    "name": "idx_users_role_id"
+                    "name": "idx_workspaces_owner_id"
                   },
-                  "name": "fk_user_role",
+                  "name": "fk_workspace_owner",
                   "onDelete": "restrict",
                   "source": {
                     "columns": [
-                      "role_id"
+                      "owner_id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "users"
+                    "tableName": "workspaces"
                   },
                   "target": {
                     "columns": [
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "roles"
+                    "tableName": "users"
                   }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "division_id"
+                    "industry_id"
                   ],
-                  "name": "idx_users_division_id",
+                  "name": "idx_workspaces_industry_id",
                   "unique": false
                 },
                 {
                   "columns": [
-                    "role_id"
+                    "owner_id"
                   ],
-                  "name": "idx_users_role_id",
+                  "name": "idx_workspaces_owner_id",
                   "unique": false
                 }
               ],
@@ -1921,14 +4701,14 @@
                 "columns": [
                   "id"
                 ],
-                "name": "users_pkey"
+                "name": "workspaces_pkey"
               },
               "uniques": [
                 {
                   "columns": [
-                    "email"
+                    "owner_id"
                   ],
-                  "name": "users_email_key"
+                  "name": "uq_workspace_owner"
                 }
               ]
             }
@@ -1938,7 +4718,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "2fee9e6b0c6d255ccd279bb25e30c637a60d0a2c3e5b9efcae5a61bdf1f25ecb"
+    "storageHash": "eff4ae7e741e5f4c1fc53e63707cfed72aa334826fcee4c8ff30f37c45a70e99"
   },
   "capabilities": {
     "postgres": {

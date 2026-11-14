@@ -173,13 +173,12 @@ PROJECT/
 │
 ├── backend/
 │   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middlewares/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   ├── utils/
-│   │   └── app.ts
+│   │   ├── exceptions/ # menyimpan class custom error
+│   │   ├── middlewares/ # custom middlewares
+│   │   ├── routes/ # kumpulan route
+│   │   ├── services/ # logika bisnis / controller.
+│   │   ├── utils/ # helper untuk format response
+│   │   └── server.ts
 │   │
 │   ├── prisma/
 │   │   ├── schema.prisma
