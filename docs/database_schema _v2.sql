@@ -582,6 +582,49 @@ CREATE TABLE invitations (
         )
 );
 
+-- =========================================================
+-- 16. PROJECT MEMBERS (anggota proyek saja)
+-- =========================================================
+-- Anggota proyek yang diundang lewat undangan proyek
+-- (`invitations.project_id` terisi). Mereka BUKAN anggota
+-- workspace: tidak melihat workspace, divisi, atau proyek
+-- lain — hanya proyek ini, dengan izin dari role yang
+-- tercantum pada undangan (role workspace_roles yang sama,
+-- ON DELETE RESTRICT seperti invitations).
+-- Owner proyek TIDAK butuh baris di sini: ia anggota
+-- workspace dan mengakses proyek lewat keanggotaan
+-- workspace-nya. Proyek dihapus -> anggotanya ikut terhapus
+-- (ON DELETE CASCADE); user dihapus -> barisnya terhapus.
+
+CREATE TABLE project_members (
+    id VARCHAR(26) PRIMARY KEY,
+
+    project_id VARCHAR(26) NOT NULL,
+    user_id VARCHAR(26) NOT NULL,
+    role_id VARCHAR(26) NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_project_member_project
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_project_member_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_project_member_role
+        FOREIGN KEY (role_id)
+        REFERENCES workspace_roles(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_project_member
+        UNIQUE (project_id, user_id)
+);
+
 
 -- =========================================================
 -- 16. INDEX
