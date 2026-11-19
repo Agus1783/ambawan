@@ -22,6 +22,7 @@ const EXPECTED_MODELS = [
   'TaskAttachments',
   'TaskComments',
   'Invitations',
+  'ProjectMembers'
 ];
 
 

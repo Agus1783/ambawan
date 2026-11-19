@@ -1,12 +1,18 @@
 import type { Response } from 'express';
+import type { PaginationMeta } from './pagination';
 
 export function successResponse(
   res: Response,
   message: string,
   data: unknown = null,
-  code = 200
+  code = 200,
+  pagination: PaginationMeta | null = null,
 ): Response {
-  return res.status(code).json({ success: true, message, data });
+  const body: Record<string, unknown> = { success: true, message, data };
+  if (pagination) {
+    body.pagination = pagination;
+  }
+  return res.status(code).json(body);
 }
 
 export function errorResponse(

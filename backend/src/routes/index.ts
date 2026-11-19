@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { successResponse } from '../utils/response';
+import { authenticateToken } from '../middlewares/auth';
 import authRoutes from '../services/authentications/routes/index';
+import workspaceRoutes from '../services/workspaces/routes/index';
+import industryRoutes from '../services/industries/routes/index';
+import invitationRoutes from '../services/invitations/routes/index';
+import { RoleController } from '../services/roles/controller/role-controller';
 
 const router: Router = Router();
 
@@ -11,5 +16,15 @@ router.get('/health', (_req: Request, res: Response): void => {
 });
 
 router.use('/auth', authRoutes);
+router.use('/workspaces', workspaceRoutes);
+router.use('/industries', industryRoutes);
+router.use('/invitations', invitationRoutes);
+
+// Katalog izin sistem (spec §10.1).
+router.get(
+  '/permissions',
+  authenticateToken,
+  RoleController.getPermissionCatalog,
+);
 
 export default router;

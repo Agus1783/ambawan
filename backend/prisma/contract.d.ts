@@ -18,7 +18,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'56c22eb25c9441c00c0e069df5bdeb9742bc31a32a6190bc32c6491047ed9ce3'>;
+  StorageHashBase<'3a7ee1f1587a1bc6d202e3bb0db90bab5a6d4dff3e5172d546506b44cb61ec9d'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -262,6 +262,14 @@ export type FieldOutputTypes = {
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly workspaceId: Varchar<26>;
     };
+    readonly ProjectMembers: {
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly id: Varchar<26>;
+      readonly projectId: Varchar<26>;
+      readonly roleId: Varchar<26>;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly userId: Varchar<26>;
+    };
     readonly Projects: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly deadline: CodecTypes['pg/timestamptz-string@1']['output'] | null;
@@ -413,6 +421,14 @@ export type FieldInputTypes = {
       readonly token: CodecTypes['sql/varchar@1']['input'];
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly workspaceId: CodecTypes['sql/varchar@1']['input'];
+    };
+    readonly ProjectMembers: {
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly id: CodecTypes['sql/varchar@1']['input'];
+      readonly projectId: CodecTypes['sql/varchar@1']['input'];
+      readonly roleId: CodecTypes['sql/varchar@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly userId: CodecTypes['sql/varchar@1']['input'];
     };
     readonly Projects: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
@@ -566,6 +582,14 @@ export type StorageColumnTypes = {
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly workspace_id: Varchar<26>;
     };
+    readonly project_members: {
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly id: Varchar<26>;
+      readonly project_id: Varchar<26>;
+      readonly role_id: Varchar<26>;
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly user_id: Varchar<26>;
+    };
     readonly project_templates: {
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly created_by: Varchar<26> | null;
@@ -717,6 +741,14 @@ export type StorageColumnInputTypes = {
       readonly token: CodecTypes['sql/varchar@1']['input'];
       readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly workspace_id: CodecTypes['sql/varchar@1']['input'];
+    };
+    readonly project_members: {
+      readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly id: CodecTypes['sql/varchar@1']['input'];
+      readonly project_id: CodecTypes['sql/varchar@1']['input'];
+      readonly role_id: CodecTypes['sql/varchar@1']['input'];
+      readonly updated_at: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly user_id: CodecTypes['sql/varchar@1']['input'];
     };
     readonly project_templates: {
       readonly created_at: CodecTypes['pg/timestamptz-string@1']['input'];
@@ -884,6 +916,18 @@ export namespace Models {
     workspace: public_Workspaces;
     readonly [RelationKeys]?: 'project' | 'role' | 'users' | 'workspace';
   };
+  export type public_ProjectMembers = {
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    id: Varchar<26>;
+    projectId: Varchar<26>;
+    roleId: Varchar<26>;
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    userId: Varchar<26>;
+    project: public_Projects;
+    role: public_WorkspaceRoles;
+    user: public_Users;
+    readonly [RelationKeys]?: 'project' | 'role' | 'user';
+  };
   export type public_ProjectTemplates = {
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     createdBy: Varchar<26> | null;
@@ -914,11 +958,18 @@ export namespace Models {
     industry: public_Industries | null;
     invitations: public_Invitations[];
     owner: public_Users;
+    projectMembers: public_ProjectMembers[];
     projectTemplate: public_ProjectTemplates | null;
     tasks: public_Tasks[];
     workspace: public_Workspaces;
     readonly [RelationKeys]?:
-      'industry' | 'invitations' | 'owner' | 'projectTemplate' | 'tasks' | 'workspace';
+      | 'industry'
+      | 'invitations'
+      | 'owner'
+      | 'projectMembers'
+      | 'projectTemplate'
+      | 'tasks'
+      | 'workspace';
   };
   export type public_RolePermissions = {
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -1027,6 +1078,7 @@ export namespace Models {
     divisions: public_Divisions[];
     industries: public_Industries[];
     invitations: public_Invitations[];
+    projectMembers: public_ProjectMembers[];
     projectTemplates: public_ProjectTemplates[];
     projects: public_Projects[];
     taskAttachments: public_TaskAttachments[];
@@ -1040,6 +1092,7 @@ export namespace Models {
       | 'divisions'
       | 'industries'
       | 'invitations'
+      | 'projectMembers'
       | 'projectTemplates'
       | 'projects'
       | 'taskAttachments'
@@ -1072,12 +1125,18 @@ export namespace Models {
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     workspaceId: Varchar<26> | null;
     invitations: public_Invitations[];
+    projectMembers: public_ProjectMembers[];
     rolePermissions: public_RolePermissions[];
     users: public_Users | null;
     workspace: public_Workspaces | null;
     workspaceMemberships: public_WorkspaceMemberships[];
     readonly [RelationKeys]?:
-      'invitations' | 'rolePermissions' | 'users' | 'workspace' | 'workspaceMemberships';
+      | 'invitations'
+      | 'projectMembers'
+      | 'rolePermissions'
+      | 'users'
+      | 'workspace'
+      | 'workspaceMemberships';
   };
   export type public_Workspaces = {
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -1113,6 +1172,7 @@ export declare const models: {
     Divisions: Models.public_Divisions;
     Industries: Models.public_Industries;
     Invitations: Models.public_Invitations;
+    ProjectMembers: Models.public_ProjectMembers;
     ProjectTemplates: Models.public_ProjectTemplates;
     Projects: Models.public_Projects;
     RolePermissions: Models.public_RolePermissions;
@@ -1468,6 +1528,121 @@ type ContractBase = Omit<
                     readonly columns: readonly ['id'];
                   };
                   readonly name: 'fk_invitation_workspace';
+                },
+              ];
+            };
+            readonly project_members: {
+              columns: {
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/varchar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 26 };
+                  readonly many: false;
+                };
+                readonly project_id: {
+                  readonly dataType: 'pg/varchar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 26 };
+                  readonly many: false;
+                };
+                readonly role_id: {
+                  readonly dataType: 'pg/varchar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 26 };
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly many: false;
+                };
+                readonly user_id: {
+                  readonly dataType: 'pg/varchar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly length: 26 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['id'];
+                readonly name: 'project_members_pkey';
+              };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['project_id', 'user_id'];
+                  readonly name: 'project_members_project_id_user_id_key';
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'idx_project_members_project_id';
+                  readonly columns: readonly ['project_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'idx_project_members_user_id';
+                  readonly columns: readonly ['user_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'project_members_role_id_idx_d9467c50';
+                  readonly prefix: 'project_members_role_id_idx';
+                  readonly columns: readonly ['role_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'project_members';
+                    readonly columns: readonly ['project_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'projects';
+                    readonly columns: readonly ['id'];
+                  };
+                  readonly name: 'fk_project_member_project';
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'project_members';
+                    readonly columns: readonly ['user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['id'];
+                  };
+                  readonly name: 'fk_project_member_user';
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'project_members';
+                    readonly columns: readonly ['role_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'workspace_roles';
+                    readonly columns: readonly ['id'];
+                  };
+                  readonly name: 'fk_project_member_role';
                 },
               ];
             };
@@ -2829,6 +3004,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Invitations';
     };
+    readonly project_members: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ProjectMembers';
+    };
     readonly project_templates: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ProjectTemplates';
@@ -3233,6 +3412,106 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly ProjectMembers: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 26 };
+                };
+              };
+              readonly projectId: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 26 };
+                };
+              };
+              readonly roleId: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 26 };
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'sql/varchar@1';
+                  readonly typeParams: { readonly length: 26 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly project: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Projects';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['projectId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly role: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'WorkspaceRoles';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['roleId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly user: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Users';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'project_members';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly id: { readonly column: 'id' };
+                readonly projectId: { readonly column: 'project_id' };
+                readonly roleId: { readonly column: 'role_id' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly userId: { readonly column: 'user_id' };
+              };
+            };
+          };
           readonly Projects: {
             readonly fields: {
               readonly createdAt: {
@@ -3343,6 +3622,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['ownerId'];
                   readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly projectMembers: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectMembers';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['projectId'];
                 };
               };
               readonly projectTemplate: {
@@ -4326,6 +4616,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['invitedBy'];
                 };
               };
+              readonly projectMembers: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectMembers';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly projectTemplates: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -4605,6 +4906,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'Invitations';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['roleId'];
+                };
+              };
+              readonly projectMembers: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectMembers';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {

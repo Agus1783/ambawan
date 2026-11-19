@@ -14,6 +14,7 @@ model Users {
   divisions            Divisions[]
   industries           Industries[]
   invitations          Invitations[]
+  projectMembers       ProjectMembers[]
   projectTemplates     ProjectTemplates[]
   projects             Projects[]
   taskAttachments      TaskAttachments[]
@@ -117,6 +118,7 @@ model Projects {
   createdAt         TimestamptzString  @default(now()) @map("created_at")
   updatedAt         TimestamptzString  @default(now()) @map("updated_at")
   invitations       Invitations[]
+  projectMembers    ProjectMembers[]
   tasks             Tasks[]
   industry          Industries?        @relation(fields: [industryId], references: [id], onDelete: SetNull, map: "fk_project_industry", index: false)
   owner             Users              @relation(fields: [ownerId], references: [id], onDelete: Restrict, map: "fk_project_owner")
@@ -138,6 +140,7 @@ model WorkspaceRoles {
   createdAt            TimestamptzString      @default(now()) @map("created_at")
   updatedAt            TimestamptzString      @default(now()) @map("updated_at")
   invitations          Invitations[]
+  projectMembers       ProjectMembers[]
   rolePermissions      RolePermissions[]
   workspaceMemberships WorkspaceMemberships[]
   users                Users?                 @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "fk_workspace_role_creator", index: false)
@@ -308,4 +311,21 @@ model WorkspaceMemberships {
   @@index([userId], map: "idx_memberships_user_id")
   @@index([workspaceId], map: "idx_memberships_workspace_id")
   @@map("workspace_memberships")
+}
+
+model ProjectMembers {
+  id        VarChar(26)       @id(map: "project_members_pkey")
+  projectId VarChar(26)       @map("project_id")
+  userId    VarChar(26)       @map("user_id")
+  roleId    VarChar(26)       @map("role_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt TimestamptzString @default(now()) @map("updated_at")
+  project   Projects          @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_project_member_project")
+  user      Users             @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_project_member_user")
+  role      WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_project_member_role")
+
+  @@unique([projectId, userId], map: "project_members_project_id_user_id_key")
+  @@index([projectId], map: "idx_project_members_project_id")
+  @@index([userId], map: "idx_project_members_user_id")
+  @@map("project_members")
 }

@@ -39,6 +39,9 @@ async function acceptPendingInvitations(
   // membership untuk undangan tersebut dibuat otomatis setelah register.
   // Best-effort dan sekuensial: bila langkah ini gagal, register tetap
   // berhasil (user dapat menerima undangan lewat link nanti).
+  //
+  // Undangan proyek (project_id terisi) hanya membuat anggota proyek
+  // di `project_members` — penerima TIDAK menjadi anggota workspace.
   try {
     const invitations =
       await AuthenticationRepository.findPendingInvitationsByEmail(email);
@@ -47,24 +50,41 @@ async function acceptPendingInvitations(
       if (new Date(invitation.expiresAt) <= now) {
         continue;
       }
-      const existing = await AuthenticationRepository.findMembership(
-        invitation.workspaceId,
-        userId,
-      );
-      if (existing) {
-        continue;
+      if (invitation.projectId) {
+        const existing =
+          await AuthenticationRepository.findProjectMembership(
+            invitation.projectId,
+            userId,
+          );
+        if (existing) {
+          continue;
+        }
+        await AuthenticationRepository.createProjectMembership({
+          projectId: invitation.projectId,
+          userId,
+          roleId: invitation.roleId,
+        });
+      } else {
+        const existing = await AuthenticationRepository.findMembership(
+          invitation.workspaceId,
+          userId,
+        );
+        if (existing) {
+          continue;
+        }
+        await AuthenticationRepository.createMembership({
+          workspaceId: invitation.workspaceId,
+          userId,
+          roleId: invitation.roleId,
+        });
       }
-      await AuthenticationRepository.createMembership({
-        workspaceId: invitation.workspaceId,
-        userId,
-        roleId: invitation.roleId,
-      });
       await AuthenticationRepository.acceptInvitation(invitation.id);
     }
   } catch (error) {
     console.error('Gagal memproses undangan pending saat register:', error);
   }
 }
+
 
 export const AuthenticationService = {
   async register(input: RegisterInput): Promise<PublicUser> {

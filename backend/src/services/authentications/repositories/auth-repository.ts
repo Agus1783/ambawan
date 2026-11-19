@@ -1,20 +1,8 @@
 import { nanoid } from 'nanoid';
-import type { Varchar } from '@prisma/orm-postgres/target/codec-types';
+import { varchar } from '../../../utils/varchar';
 import type { Scalars } from '@prisma/orm-postgres/family-contract/types';
 import type { Models } from '../../../../prisma/contract';
 import { db } from '../../../../prisma/db';
-
-/**
- * Nilai kolom `VarChar(n)` di ORM Prisma 8 adalah string dengan
- * "brand" compile-time (`Varchar<n>`), jadi string biasa tidak bisa
- * langsung dipakai di `.eq()` / `.create()` / `.update()`.
- * Helper ini mengubah string menjadi `Varchar<n>`; saat runtime
- * nilainya tetap string biasa. Panjang sudah divalidasi Zod (max)
- * dan ditegakkan PostgreSQL.
- */
-function varchar<N extends number>(value: string): Varchar<N> {
-  return value as Varchar<N>;
-}
 
 /**
  * Baris yang dikembalikan ORM untuk model-model auth:
@@ -23,6 +11,7 @@ function varchar<N extends number>(value: string): Varchar<N> {
 export type UserRow = Scalars<Models.public_Users>;
 export type InvitationRow = Scalars<Models.public_Invitations>;
 export type MembershipRow = Scalars<Models.public_WorkspaceMemberships>;
+export type ProjectMembershipRow = Scalars<Models.public_ProjectMembers>;
 
 interface AuthenticationRepositoryShape {
   findByEmail(email: string): Promise<UserRow | null>;
@@ -46,6 +35,15 @@ interface AuthenticationRepositoryShape {
     userId: string;
     roleId: string;
   }): Promise<MembershipRow>;
+  findProjectMembership(
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectMembershipRow | null>;
+  createProjectMembership(data: {
+    projectId: string;
+    userId: string;
+    roleId: string;
+  }): Promise<ProjectMembershipRow>;
   acceptInvitation(invitationId: string): Promise<InvitationRow | null>;
 }
 
@@ -129,6 +127,26 @@ export const AuthenticationRepository: AuthenticationRepositoryShape = {
     return db.orm.public.WorkspaceMemberships.create({
       id: varchar<26>(nanoid()),
       workspaceId: varchar<26>(data.workspaceId),
+      userId: varchar<26>(data.userId),
+      roleId: varchar<26>(data.roleId),
+    });
+  },
+  findProjectMembership(projectId: string, userId: string) {
+    return db.orm.public.ProjectMembers.where((m) =>
+      m.projectId.eq(varchar<26>(projectId)),
+    )
+      .where((m) => m.userId.eq(varchar<26>(userId)))
+      .first();
+  },
+
+  createProjectMembership(data: {
+    projectId: string;
+    userId: string;
+    roleId: string;
+  }) {
+    return db.orm.public.ProjectMembers.create({
+      id: varchar<26>(nanoid()),
+      projectId: varchar<26>(data.projectId),
       userId: varchar<26>(data.userId),
       roleId: varchar<26>(data.roleId),
     });
