@@ -9,6 +9,9 @@
  *   `req.workspace` hanya diisi bila pemanggil juga anggota
  *   workspace; anggota proyek saja (bukan anggota workspace)
  *   tidak mendapat `req.workspace`.
+ * - `req.task` diisi middleware authorizeTask (task aktif).
+ *   `req.workspace` hanya diisi bila pemanggil anggota workspace
+ *   pemilik task; anggota proyek saja tidak mendapatnya.
  */
 declare global {
   namespace Express {
@@ -27,6 +30,11 @@ declare global {
         roleId: string;
         roleName: string;
         permissions: string[];
+      };
+      task?: {
+        id: string;
+        workspaceId: string;
+        projectId: string;
       };
     }
   }
