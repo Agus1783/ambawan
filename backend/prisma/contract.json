@@ -3424,7 +3424,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "idx_project_members_project_id"
+                    "unique": [
+                      "project_id",
+                      "user_id"
+                    ]
                   },
                   "name": "fk_project_member_project",
                   "onDelete": "cascade",
@@ -3444,30 +3447,6 @@
                   }
                 },
                 {
-                  "index": {
-                    "name": "idx_project_members_user_id"
-                  },
-                  "name": "fk_project_member_user",
-                  "onDelete": "cascade",
-                  "source": {
-                    "columns": [
-                      "user_id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "project_members"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "users"
-                  }
-                },
-                {
-                  "index": {
-                    "name": "project_members_role_id_idx_d9467c50"
-                  },
                   "name": "fk_project_member_role",
                   "onDelete": "restrict",
                   "source": {
@@ -3484,32 +3463,27 @@
                     "namespaceId": "public",
                     "tableName": "workspace_roles"
                   }
-                }
-              ],
-              "indexes": [
-                {
-                  "columns": [
-                    "project_id"
-                  ],
-                  "name": "idx_project_members_project_id",
-                  "unique": false
                 },
                 {
-                  "columns": [
-                    "user_id"
-                  ],
-                  "name": "idx_project_members_user_id",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "role_id"
-                  ],
-                  "name": "project_members_role_id_idx_d9467c50",
-                  "prefix": "project_members_role_id_idx",
-                  "unique": false
+                  "name": "fk_project_member_user",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "user_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_members"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "users"
+                  }
                 }
               ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -3522,7 +3496,7 @@
                     "project_id",
                     "user_id"
                   ],
-                  "name": "project_members_project_id_user_id_key"
+                  "name": "uq_project_member"
                 }
               ]
             },
@@ -3864,7 +3838,7 @@
             "role_permissions": {
               "checks": [
                 {
-                  "expression": "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))",
+                  "expression": "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'member.view'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))",
                   "name": "chk_role_permission_catalog"
                 }
               ],
@@ -5322,7 +5296,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3a7ee1f1587a1bc6d202e3bb0db90bab5a6d4dff3e5172d546506b44cb61ec9d"
+    "storageHash": "8da4b05ccd163192a5e432190d52e13df946d2e0f4c952f9cf997da8da956ee4"
   },
   "capabilities": {
     "postgres": {

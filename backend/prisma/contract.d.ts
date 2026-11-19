@@ -18,7 +18,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'3a7ee1f1587a1bc6d202e3bb0db90bab5a6d4dff3e5172d546506b44cb61ec9d'>;
+  StorageHashBase<'8da4b05ccd163192a5e432190d52e13df946d2e0f4c952f9cf997da8da956ee4'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -1583,27 +1583,10 @@ type ContractBase = Omit<
               uniques: readonly [
                 {
                   readonly columns: readonly ['project_id', 'user_id'];
-                  readonly name: 'project_members_project_id_user_id_key';
+                  readonly name: 'uq_project_member';
                 },
               ];
-              indexes: readonly [
-                {
-                  readonly name: 'idx_project_members_project_id';
-                  readonly columns: readonly ['project_id'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'idx_project_members_user_id';
-                  readonly columns: readonly ['user_id'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'project_members_role_id_idx_d9467c50';
-                  readonly prefix: 'project_members_role_id_idx';
-                  readonly columns: readonly ['role_id'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -1622,19 +1605,6 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'project_members';
-                    readonly columns: readonly ['user_id'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'users';
-                    readonly columns: readonly ['id'];
-                  };
-                  readonly name: 'fk_project_member_user';
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'project_members';
                     readonly columns: readonly ['role_id'];
                   };
                   readonly target: {
@@ -1643,6 +1613,19 @@ type ContractBase = Omit<
                     readonly columns: readonly ['id'];
                   };
                   readonly name: 'fk_project_member_role';
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'project_members';
+                    readonly columns: readonly ['user_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'users';
+                    readonly columns: readonly ['id'];
+                  };
+                  readonly name: 'fk_project_member_user';
                 },
               ];
             };

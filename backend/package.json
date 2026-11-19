@@ -58,8 +58,9 @@
     "eslint": "^10.13.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jsdoc": "^65.3.11",
+    "exact": "^1.0.1",
     "nodemon": "^3.1.14",
-    "prisma": "8.0.0-rc.34",
+    "prisma": "8.0.0-rc.22",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3"

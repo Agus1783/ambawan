@@ -178,6 +178,21 @@ model Invitations {
   @@map("invitations")
 }
 
+model ProjectMembers {
+  id        VarChar(26)       @id(map: "project_members_pkey")
+  projectId VarChar(26)       @map("project_id")
+  userId    VarChar(26)       @map("user_id")
+  roleId    VarChar(26)       @map("role_id")
+  createdAt TimestamptzString @default(now()) @map("created_at")
+  updatedAt TimestamptzString @default(now()) @map("updated_at")
+  project   Projects          @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_project_member_project", index: "uq_project_member")
+  role      WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_project_member_role", index: false)
+  user      Users             @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_project_member_user", index: false)
+
+  @@unique([projectId, userId], map: "uq_project_member")
+  @@map("project_members")
+}
+
 model RolePermissions {
   id         VarChar(26)       @id(map: "role_permissions_pkey")
   roleId     VarChar(26)       @map("role_id")
@@ -187,7 +202,7 @@ model RolePermissions {
 
   @@unique([roleId, permission], map: "uq_role_permission")
   @@index([roleId], map: "idx_role_permissions_role_id")
-  @@check(expression: "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))", map: "chk_role_permission_catalog")
+  @@check(expression: "((permission)::text = ANY ((ARRAY['workspace.view'::character varying, 'workspace.update'::character varying, 'workspace.delete'::character varying, 'workspace.manage_divisions'::character varying, 'workspace.manage_templates'::character varying, 'workspace.manage_industries'::character varying, 'member.invite'::character varying, 'member.manage'::character varying, 'member.view'::character varying, 'project.create'::character varying, 'project.update'::character varying, 'project.delete'::character varying, 'project.view'::character varying, 'task.create'::character varying, 'task.update'::character varying, 'task.delete'::character varying, 'task.delegate'::character varying, 'task.update_status'::character varying, 'task.view'::character varying, 'attachment.upload'::character varying, 'attachment.delete'::character varying, 'comment.create'::character varying, 'dashboard.view'::character varying, 'analytics.view'::character varying, 'history.view'::character varying])::text[]))", map: "chk_role_permission_catalog")
   @@map("role_permissions")
 }
 
@@ -311,21 +326,4 @@ model WorkspaceMemberships {
   @@index([userId], map: "idx_memberships_user_id")
   @@index([workspaceId], map: "idx_memberships_workspace_id")
   @@map("workspace_memberships")
-}
-
-model ProjectMembers {
-  id        VarChar(26)       @id(map: "project_members_pkey")
-  projectId VarChar(26)       @map("project_id")
-  userId    VarChar(26)       @map("user_id")
-  roleId    VarChar(26)       @map("role_id")
-  createdAt TimestamptzString @default(now()) @map("created_at")
-  updatedAt TimestamptzString @default(now()) @map("updated_at")
-  project   Projects          @relation(fields: [projectId], references: [id], onDelete: Cascade, map: "fk_project_member_project")
-  user      Users             @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_project_member_user")
-  role      WorkspaceRoles    @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_project_member_role")
-
-  @@unique([projectId, userId], map: "project_members_project_id_user_id_key")
-  @@index([projectId], map: "idx_project_members_project_id")
-  @@index([userId], map: "idx_project_members_user_id")
-  @@map("project_members")
 }
