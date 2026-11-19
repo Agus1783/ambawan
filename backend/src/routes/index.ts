@@ -6,6 +6,8 @@ import authRoutes from '../services/authentications/routes/index';
 import workspaceRoutes from '../services/workspaces/routes/index';
 import industryRoutes from '../services/industries/routes/index';
 import invitationRoutes from '../services/invitations/routes/index';
+import divisionRoutes from '../services/divisions/routes/index';
+import projectRoutes from '../services/projects/routes/index';
 import { RoleController } from '../services/roles/controller/role-controller';
 
 const router: Router = Router();
@@ -19,6 +21,8 @@ router.use('/auth', authRoutes);
 router.use('/workspaces', workspaceRoutes);
 router.use('/industries', industryRoutes);
 router.use('/invitations', invitationRoutes);
+router.use('/divisions', divisionRoutes);
+router.use('/projects', projectRoutes);
 
 // Katalog izin sistem (spec §10.1).
 router.get(

@@ -11,6 +11,7 @@ import { WorkspaceController } from '../controller/workspace-controller';
 import { InvitationController } from '../../invitations/controller/invitation-controller';
 import { CreateInvitationSchema } from '../../invitations/validator/schema';
 import roleRoutes from '../../roles/routes/index';
+import projectTemplateRoutes from '../../project-templates/routes/index';
 
 const router: Router = Router();
 
@@ -77,5 +78,9 @@ router.get(
 
 // Role kustom: /api/v1/workspaces/:id/roles (spec §10).
 router.use('/:id/roles', roleRoutes);
+
+// Template proyek & template tugas:
+// /api/v1/workspaces/:id/project-templates (spec §13.8–§13.16).
+router.use('/:id/project-templates', projectTemplateRoutes);
 
 export default router;
