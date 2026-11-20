@@ -16,6 +16,7 @@ import {
   NotFoundError,
 } from '../../../exceptions/index';
 import { buildPaginationMeta, offsetOf } from '../../../utils/pagination';
+import { invalidateCache } from '../../../utils/cache';
 import type {
   CreateTaskInput,
   DelegateTaskInput,
@@ -296,6 +297,9 @@ export const TaskService = {
       return created;
     });
 
+    // Task bertambah -> ringkasan dashboard workspace ini yang
+    // ter-cache kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache(`dashboard:summary:${input.workspace_id}:`);
     return {
       id: task.id,
       workspace_id: task.workspaceId,
@@ -378,6 +382,9 @@ export const TaskService = {
     if (!updated) {
       throw new NotFoundError('Task tidak ditemukan', 'TASK_NOT_FOUND');
     }
+    // Task berubah -> ringkasan dashboard workspace ini yang
+    // ter-cache kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache(`dashboard:summary:${task.workspaceId}:`);
     return {
       id: updated.id,
       workspace_id: updated.workspaceId,
@@ -391,6 +398,9 @@ export const TaskService = {
     const task = await loadTask(taskId);
     // Subtask ikut terhapus (FK Cascade).
     await TaskRepository.deleteTask(task.id);
+    // Task berkurang -> ringkasan dashboard workspace ini yang
+    // ter-cache kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache(`dashboard:summary:${task.workspaceId}:`);
   },
 
   async updateTaskStatus(
@@ -427,6 +437,9 @@ export const TaskService = {
     if (!updated) {
       throw new NotFoundError('Task tidak ditemukan', 'TASK_NOT_FOUND');
     }
+    // Status berubah -> ringkasan dashboard workspace ini yang
+    // ter-cache kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache(`dashboard:summary:${task.workspaceId}:`);
     return { id: updated.id, status: updated.status };
   },
 
@@ -553,6 +566,10 @@ export const TaskService = {
     if (!updated) {
       throw new NotFoundError('Task tidak ditemukan', 'TASK_NOT_FOUND');
     }
+    // Delegasi mengubah assignee/divisi -> ringkasan dashboard
+    // workspace ini yang ter-cache kedaluwarsa (best-effort,
+    // tidak pernah throw).
+    await invalidateCache(`dashboard:summary:${task.workspaceId}:`);
     const lookups = await loadLookups([updated]);
     const item = toTaskListItem(updated, lookups);
     return {

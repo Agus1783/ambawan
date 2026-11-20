@@ -3,6 +3,7 @@ import { RoleService } from '../service/role-service';
 import { AuthenticationError } from '../../../exceptions/index';
 import { paramValue } from '../../../middlewares/authorize';
 import { successResponse } from '../../../utils/response';
+import { CACHE_TTL, getOrSet } from '../../../utils/cache';
 import type {
   CreateRoleInput,
   UpdateRoleInput,
@@ -28,9 +29,26 @@ function requireRoleId(req: Request): string {
  * Controller role & katalog izin (spec v2 §10).
  */
 export const RoleController = {
-  getPermissionCatalog(_req: Request, res: Response) {
-    const catalog = RoleService.getPermissionCatalog();
-    successResponse(res, 'Katalog izin berhasil diambil', catalog);
+  async getPermissionCatalog(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      // Katalog izin di-cache read-through (TTL singkat).
+      // Nilainya saat ini konstanta statis di RoleService, jadi
+      // cache ini terutama menjaga pola yang sama bila katalog
+      // nanti diambil dari database; tanpa REDIS_URL, getOrSet
+      // langsung memanggil loader seperti sebelumnya.
+      const catalog = await getOrSet(
+        'permissions:catalog',
+        CACHE_TTL.permissions,
+        async () => RoleService.getPermissionCatalog(),
+      );
+      successResponse(res, 'Katalog izin berhasil diambil', catalog);
+    } catch (error) {
+      next(error);
+    }
   },
 
   async list(req: Request, res: Response, next: NextFunction) {

@@ -7,6 +7,7 @@ import {
   NotFoundError,
 } from '../../../exceptions/index';
 import { PERMISSION_CATALOG } from '../../../utils/permissions';
+import { invalidateCache } from '../../../utils/cache';
 import type {
   CreateRoleInput,
   UpdateRoleInput,
@@ -109,6 +110,9 @@ export const RoleService = {
       await RoleRepository.createPermissions(created.id, permissions, tx.orm);
       return created;
     });
+    // Susunan role/izin berubah -> katalog izin yang ter-cache
+    // kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache('permissions:catalog');
     return toRoleResponse(role, permissions);
   },
 
@@ -170,6 +174,9 @@ export const RoleService = {
     const permissionRows = await RoleRepository.findPermissionsByRoles([
       roleId,
     ]);
+    // Susunan role/izin berubah -> katalog izin yang ter-cache
+    // kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache('permissions:catalog');
     return toRoleResponse(
       updated,
       permissionRows.map((p) => p.permission as string),
@@ -197,5 +204,8 @@ export const RoleService = {
     }
 
     await RoleRepository.deleteRole(roleId);
+    // Susunan role/izin berubah -> katalog izin yang ter-cache
+    // kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache('permissions:catalog');
   },
 };

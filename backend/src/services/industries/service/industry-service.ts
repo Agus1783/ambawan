@@ -6,6 +6,11 @@ import {
 } from '../../../exceptions/index';
 import { buildPaginationMeta, offsetOf } from '../../../utils/pagination';
 import { hasPermissionAnywhere } from '../../../utils/permissions';
+import {
+  CACHE_TTL,
+  getOrSet,
+  invalidateCache,
+} from '../../../utils/cache';
 import type { CreateIndustryInput } from '../validator/schema';
 
 function toIndustryResponse(row: {
@@ -28,18 +33,26 @@ export const IndustryService = {
     limit: number;
     search?: string | undefined;
   }) {
-    const [rows, total] = await Promise.all([
-      IndustryRepository.list({
-        search: query.search,
-        limit: query.limit,
-        offset: offsetOf(query.page, query.limit),
-      }),
-      IndustryRepository.count({ search: query.search }),
-    ]);
-    return {
-      items: rows.map(toIndustryResponse),
-      pagination: buildPaginationMeta(query.page, query.limit, total),
-    };
+    // Daftar industri di-cache read-through (TTL singkat); kunci
+    // memuat page/limit/search supaya tiap variasi punya entrinya
+    // sendiri. Tanpa REDIS_URL, getOrSet langsung memanggil loader.
+    const key =
+      `industries:list:page:${query.page}:limit:${query.limit}` +
+      `:search:${query.search ?? ''}`;
+    return getOrSet(key, CACHE_TTL.industries, async () => {
+      const [rows, total] = await Promise.all([
+        IndustryRepository.list({
+          search: query.search,
+          limit: query.limit,
+          offset: offsetOf(query.page, query.limit),
+        }),
+        IndustryRepository.count({ search: query.search }),
+      ]);
+      return {
+        items: rows.map(toIndustryResponse),
+        pagination: buildPaginationMeta(query.page, query.limit, total),
+      };
+    });
   },
 
   async createIndustry(userId: string, input: CreateIndustryInput) {
@@ -70,6 +83,9 @@ export const IndustryService = {
       description: input.description,
       createdBy: userId,
     });
+    // Industri bertambah -> daftar industri yang ter-cache
+    // kedaluwarsa (best-effort, tidak pernah throw).
+    await invalidateCache('industries:list:');
     return toIndustryResponse(created);
   },
 

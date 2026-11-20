@@ -4,6 +4,7 @@ import { NotFoundError } from '../../../exceptions/index';
 import { DashboardRepository } from '../repositories/dashboard-repository';
 import type { DashboardTaskRow } from '../repositories/dashboard-repository';
 import { TASK_STATUSES } from '../../tasks/service/task-service';
+import { CACHE_TTL, getOrSet } from '../../../utils/cache';
 
 export const TASK_PRIORITIES = ['P1', 'P2', 'P3'] as const;
 
@@ -84,53 +85,20 @@ async function scopedTasks(
 }
 
 export const DashboardService = {
+  /**
+   * Ringkasan dashboard di-cache read-through per workspace +
+   * user (TTL singkat). Kunci memuat userId karena MEMBER hanya
+   * melihat statistik task miliknya sendiri. Tanpa REDIS_URL,
+   * getOrSet langsung memanggil computeSummary seperti sebelumnya.
+   * Cek izin ikut di dalam loader, jadi respons 403 tidak pernah
+   * tersimpan di cache.
+   */
   async getSummary(userId: string, workspaceId: string) {
-    const membership = await checkWorkspacePermission(
-      userId,
-      workspaceId,
-      'dashboard.view',
+    return getOrSet(
+      `dashboard:summary:${workspaceId}:${userId}`,
+      CACHE_TTL.dashboardSummary,
+      () => computeSummary(userId, workspaceId),
     );
-    const allTasks =
-      await DashboardRepository.findTasksInWorkspace(workspaceId);
-    const tasks = await scopedTasks(
-      userId,
-      workspaceId,
-      membership.roleName,
-      allTasks,
-    );
-
-    const now = new Date();
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(
-      (t) => t.status === 'COMPLETED',
-    ).length;
-    const inProgressTasks = tasks.filter(
-      (t) => t.status === 'IN_PROGRESS',
-    ).length;
-    const reviewTasks = tasks.filter((t) => t.status === 'REVIEW').length;
-    // Terlambat: deadline sudah lewat dan task belum selesai
-    // atau dibatalkan.
-    const overdueTasks = tasks.filter(
-      (t) =>
-        t.deadline !== null &&
-        new Date(t.deadline) < now &&
-        t.status !== 'COMPLETED' &&
-        t.status !== 'CANCELLED',
-    ).length;
-    const completionRate =
-      totalTasks === 0
-        ? 0
-        : Math.round((completedTasks / totalTasks) * 100);
-
-    return {
-      workspace_id: workspaceId,
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      reviewTasks,
-      overdueTasks,
-      completionRate,
-    };
   },
 
   async getTaskStatistics(
@@ -207,3 +175,58 @@ export const DashboardService = {
     };
   },
 };
+
+/**
+ * Hitung ringkasan dashboard dari database (dipanggil
+ * `getSummary` lewat cache). Cek izin `dashboard.view` ada di
+ * sini, di dalam loader, supaya respons 403 tidak pernah
+ * tersimpan di cache.
+ */
+async function computeSummary(userId: string, workspaceId: string) {
+  const membership = await checkWorkspacePermission(
+    userId,
+    workspaceId,
+    'dashboard.view',
+  );
+  const allTasks =
+    await DashboardRepository.findTasksInWorkspace(workspaceId);
+  const tasks = await scopedTasks(
+    userId,
+    workspaceId,
+    membership.roleName,
+    allTasks,
+  );
+
+  const now = new Date();
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(
+    (t) => t.status === 'COMPLETED',
+  ).length;
+  const inProgressTasks = tasks.filter(
+    (t) => t.status === 'IN_PROGRESS',
+  ).length;
+  const reviewTasks = tasks.filter((t) => t.status === 'REVIEW').length;
+  // Terlambat: deadline sudah lewat dan task belum selesai
+  // atau dibatalkan.
+  const overdueTasks = tasks.filter(
+    (t) =>
+      t.deadline !== null &&
+      new Date(t.deadline) < now &&
+      t.status !== 'COMPLETED' &&
+      t.status !== 'CANCELLED',
+  ).length;
+  const completionRate =
+    totalTasks === 0
+      ? 0
+      : Math.round((completedTasks / totalTasks) * 100);
+
+  return {
+    workspace_id: workspaceId,
+    totalTasks,
+    completedTasks,
+    inProgressTasks,
+    reviewTasks,
+    overdueTasks,
+    completionRate,
+  };
+}
