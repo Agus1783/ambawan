@@ -9,6 +9,7 @@ import invitationRoutes from '../services/invitations/routes/index';
 import divisionRoutes from '../services/divisions/routes/index';
 import projectRoutes from '../services/projects/routes/index';
 import taskRoutes from '../services/tasks/routes/index';
+import userRoutes from '../services/users/routes/index';
 import dashboardRoutes from '../services/dashboard/routes/index';
 import { RoleController } from '../services/roles/controller/role-controller';
 
@@ -26,6 +27,7 @@ router.use('/invitations', invitationRoutes);
 router.use('/divisions', divisionRoutes);
 router.use('/projects', projectRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/users', userRoutes);
 router.use('/dashboard', dashboardRoutes);
 
 // Katalog izin sistem (spec §10.1).
