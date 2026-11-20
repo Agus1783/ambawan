@@ -13,8 +13,9 @@ const app: Application = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-// File lampiran task disajikan statis (spec §16; penyimpanan
-// lokal di `uploads/` — lihat TaskAttachmentService).
+// File lampiran task yang disimpan lokal disajikan statis
+// (spec §16; mode fallback bila Supabase Storage tidak
+// dikonfigurasi — lihat src/utils/storage.ts).
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/v1', routes);
 

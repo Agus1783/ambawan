@@ -1,10 +1,12 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { db } from '../../../../prisma/db';
 import { TaskAttachmentRepository } from '../repositories/task-attachment-repository';
 import type { TaskAttachmentRow } from '../repositories/task-attachment-repository';
 import { TaskHistoryRepository } from '../../task-history/repositories/task-history-repository';
 import { NotFoundError } from '../../../exceptions/index';
+import {
+  deleteStoredFile,
+  storeAttachmentFile,
+} from '../../../utils/storage';
 
 function toAttachment(row: TaskAttachmentRow) {
   return {
@@ -19,18 +21,15 @@ function toAttachment(row: TaskAttachmentRow) {
 }
 
 /**
- * Lampiran task (spec v2 §16).
+ * Lampiran task (spec v2 §16; langkah 10).
  *
- * CATATAN PENYIMPANAN: spec menulis "upload file ke Supabase
- * Storage", tetapi backend ini belum punya kredensial Supabase
- * Storage (tidak ada @supabase/supabase-js maupun
- * SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY di .env). Supaya
- * endpoint tetap berfungsi end-to-end di MVP, file disimpan
- * lokal di `uploads/` (multer) dan disajikan statis di
- * `/uploads`. Bila nanti Supabase Storage disiapkan, yang
- * berubah hanya fungsi upload di service ini (dan
- * `fileUrl` menjadi URL publik Supabase); metadata +
- * respons API tetap sama.
+ * Penyimpanan file ditangani `src/utils/storage.ts`: bila
+ * Supabase Storage dikonfigurasi (SUPABASE_URL +
+ * SUPABASE_SERVICE_ROLE_KEY + SUPABASE_STORAGE_BUCKET), file
+ * diunggah ke bucket dan `fileUrl` berisi URL publiknya; bila
+ * tidak, file disimpan lokal di `uploads/` dan disajikan
+ * statis di `/uploads`. Metadata + respons API tetap sama
+ * di kedua mode.
  */
 export const TaskAttachmentService = {
   async uploadAttachment(
@@ -38,13 +37,19 @@ export const TaskAttachmentService = {
     taskId: string,
     file: Express.Multer.File,
   ) {
+    const { fileUrl } = await storeAttachmentFile({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      taskId,
+    });
     const attachment = await db.transaction(async (tx) => {
       const created = await TaskAttachmentRepository.createAttachment(
         {
           taskId,
           uploadedBy: userId,
           fileName: file.originalname,
-          fileUrl: `/uploads/${file.filename}`,
+          fileUrl,
           fileType: file.mimetype,
           fileSize: file.size,
         },
@@ -99,9 +104,6 @@ export const TaskAttachmentService = {
     });
 
     // Hapus file fisik (best-effort; abaikan bila sudah tidak ada).
-    const fileName = path.basename(attachment.fileUrl);
-    await fs
-      .unlink(path.join(process.cwd(), 'uploads', fileName))
-      .catch(() => undefined);
+    await deleteStoredFile(attachment.fileUrl);
   },
 };

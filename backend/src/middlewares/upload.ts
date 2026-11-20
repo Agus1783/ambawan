@@ -1,6 +1,4 @@
 import multer from 'multer';
-import path from 'node:path';
-import { nanoid } from 'nanoid';
 import { ClientError } from '../exceptions/index';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -20,23 +18,14 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/x-zip-compressed',
 ]);
 
-const storage = multer.diskStorage({
-  destination: path.join(process.cwd(), 'uploads'),
-  filename: (_req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, `${nanoid(12)}-${safeName}`);
-  },
-});
-
 /**
  * Upload satu file attachment task (spec v2 §16.1).
- * Disimpan lokal di `uploads/` dan disajikan statis di
- * `/uploads` — pengganti sementara Supabase Storage sampai
- * bucket + kredensial Supabase disiapkan (lihat catatan di
- * TaskAttachmentService).
+ * File ditampung di memori (memoryStorage); penyimpanan ke
+ * Supabase Storage atau lokal `uploads/` dilakukan oleh
+ * TaskAttachmentService lewat `src/utils/storage.ts`.
  */
 export const uploadAttachmentFile = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
