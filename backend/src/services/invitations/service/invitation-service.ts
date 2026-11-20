@@ -14,6 +14,7 @@ import {
   NotFoundError,
 } from '../../../exceptions/index';
 import { buildPaginationMeta, offsetOf } from '../../../utils/pagination';
+import { sendInvitationEmailBestEffort } from '../../../utils/mailer';
 import type { CreateInvitationInput } from '../validator/schema';
 
 /** Masa berlaku undangan: 7 hari (spec §11, keputusan PRD §13.4). */
@@ -61,6 +62,7 @@ export const InvitationService = {
     }
 
     let projectId: string | null = null;
+    let projectName: string | null = null;
     if (input.project_id !== undefined) {
       const project = await InvitationRepository.findProjectById(
         input.project_id,
@@ -69,6 +71,7 @@ export const InvitationService = {
         throw new NotFoundError('Project tidak ditemukan', 'PROJECT_NOT_FOUND');
       }
       projectId = project.id;
+      projectName = project.name;
     }
 
     const invitedUser = await InvitationRepository.findUserByEmail(
@@ -98,12 +101,20 @@ export const InvitationService = {
       expiresAt: newExpiryIso(),
     });
 
-    // TODO: kirim token lewat email (belum ada layanan email di
-    // backend ini). Sementara token dicatat di log server agar bisa
-    // diuji lewat POST /invitations/:token/accept.
-    globalThis.console.log(
-      `Undangan workspace ${workspaceId} untuk ${input.email}: token ${token}`,
+    // Kirim email undangan (best-effort): bila SMTP belum
+    // dikonfigurasi, token dicatat di log server seperti
+    // sebelumnya; kegagalan kirim tidak menggagalkan request.
+    const workspace = await InvitationRepository.findWorkspaceById(
+      workspaceId,
     );
+    await sendInvitationEmailBestEffort({
+      to: input.email,
+      workspaceName: workspace?.name ?? workspaceId,
+      roleName: role.name,
+      projectName,
+      token,
+      expiresAt: invitation.expiresAt,
+    });
 
     return {
       id: invitation.id,
@@ -220,7 +231,11 @@ export const InvitationService = {
 
     // Membership + penanda ACCEPTED harus atomik. Bila user sudah
     // menjadi anggota lewat jalur lain, membership tidak dibuat
-    // ganda (UNIQUE workspace_id + user_id).
+    // ganda (UNIQUE workspace_id + user_id / project_id + user_id).
+    //
+    // Undangan proyek (project_id terisi) HANYA membuat anggota
+    // proyek di `project_members` — penerima TIDAK menjadi anggota
+    // workspace. Undangan workspace membuat anggota workspace.
     await db.transaction(async (tx) => {
       if (invitation.projectId) {
         const existing = await InvitationRepository.findProjectMembership(
@@ -370,9 +385,22 @@ export const InvitationService = {
       );
     });
 
-    globalThis.console.log(
-      `Undangan workspace ${invitation.workspaceId} untuk ${invitation.email} dikirim ulang: token ${token}`,
-    );
+    // Kirim ulang lewat email (best-effort, sama seperti create).
+    const [workspace, role, project] = await Promise.all([
+      InvitationRepository.findWorkspaceById(invitation.workspaceId),
+      InvitationRepository.findRoleById(invitation.roleId),
+      invitation.projectId
+        ? InvitationRepository.findProjectById(invitation.projectId)
+        : Promise.resolve(null),
+    ]);
+    await sendInvitationEmailBestEffort({
+      to: invitation.email,
+      workspaceName: workspace?.name ?? invitation.workspaceId,
+      roleName: role?.name ?? invitation.roleId,
+      projectName: project?.name ?? null,
+      token,
+      expiresAt,
+    });
 
     return {
       id: created.id,
