@@ -22,6 +22,48 @@ export interface AuthResult {
   accessToken: string;
 }
 
+/** Bidang usaha (spec v2 §9). */
+export interface Industry {
+  id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+}
+
+/** Role di dalam workspace (spec v2 §8, §10). */
+export interface WorkspaceRole {
+  id: string;
+  name: string;
+  is_system: boolean;
+}
+
+/** Workspace yang diikuti user + role-nya di workspace itu (GET /workspaces). */
+export interface Workspace {
+  id: string;
+  name: string;
+  industry: { id: string; name: string } | null;
+  owner_id: string;
+  is_owner: boolean;
+  role: WorkspaceRole;
+}
+
+/** Detail workspace (GET /workspaces/:id) — tanpa role, ada jumlah anggota. */
+export interface WorkspaceDetail {
+  id: string;
+  name: string;
+  industry: { id: string; name: string } | null;
+  owner_id: string;
+  memberCount: number;
+}
+
+/** Saran proyek sistem untuk satu bidang usaha (spec v2 §9.3). */
+export interface ProjectSuggestion {
+  id: string;
+  name: string;
+  description: string | null;
+  industry: { id: string; name: string };
+}
+
 interface Envelope {
   success: boolean;
   message: string;
@@ -59,6 +101,18 @@ export function pesanErrorApi(error: unknown): string {
     }
     if (error.code === 'EMAIL_ALREADY_EXISTS') {
       return 'Email sudah digunakan.';
+    }
+    if (error.code === 'WORKSPACE_LIMIT_REACHED') {
+      return 'Kamu sudah memiliki satu workspace.';
+    }
+    if (error.code === 'INDUSTRY_NOT_FOUND') {
+      return 'Bidang usaha tidak ditemukan.';
+    }
+    if (error.code === 'WORKSPACE_NOT_FOUND') {
+      return 'Workspace tidak ditemukan.';
+    }
+    if (error.code === 'RESOURCE_CONFLICT') {
+      return 'Nama itu sudah digunakan.';
     }
     if (error.code === 'VALIDATION_ERROR') {
       return 'Periksa lagi isian form.';
@@ -202,6 +256,53 @@ async function me(): Promise<PublicUser> {
   return get<PublicUser>('/auth/me');
 }
 
+// --- Workspace (spec v2 §8) ---
+
+async function listWorkspaces(): Promise<Workspace[]> {
+  return get<Workspace[]>('/workspaces');
+}
+
+async function createWorkspace(input: {
+  name: string;
+  industry_id: string;
+}): Promise<Workspace> {
+  // Respons create tidak membawa `is_owner`; pembuat selalu jadi OWNER
+  // (backend membuat membership OWNER dalam transaksi yang sama).
+  const created = await post<{
+    id: string;
+    name: string;
+    industry: { id: string; name: string } | null;
+    owner_id: string;
+    role: WorkspaceRole;
+  }>('/workspaces', input);
+  return { ...created, is_owner: true };
+}
+
+async function getWorkspace(id: string): Promise<WorkspaceDetail> {
+  return get<WorkspaceDetail>(`/workspaces/${id}`);
+}
+
+// --- Industri & saran proyek (spec v2 §9) ---
+
+async function listIndustries(): Promise<Industry[]> {
+  return get<Industry[]>('/industries');
+}
+
+async function createIndustry(input: {
+  name: string;
+  description?: string;
+}): Promise<Industry> {
+  return post<Industry>('/industries', input);
+}
+
+async function getProjectSuggestions(
+  industryId: string,
+): Promise<ProjectSuggestion[]> {
+  return get<ProjectSuggestion[]>(
+    `/industries/${industryId}/project-suggestions`,
+  );
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -214,6 +315,12 @@ const api = {
   loginWithGoogle,
   logout,
   me,
+  listWorkspaces,
+  createWorkspace,
+  getWorkspace,
+  listIndustries,
+  createIndustry,
+  getProjectSuggestions,
 };
 
 export default api;

@@ -24,7 +24,7 @@ import {
 
 const PAGE_SIZE = 6;
 
-const CAN_CREATE_TASK: RoleName[] = ['ADMIN', 'MANAGER', 'DIVISION_LEADER'];
+const CAN_CREATE_TASK: RoleName[] = ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER'];
 
 export function TasksPage({
   tasks,

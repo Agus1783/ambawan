@@ -3,12 +3,13 @@ import { CURRENT_USER_ID, ROLE_LABELS } from '../../data/mockData';
 import { userName } from '../../utils/helpers';
 
 const NAV: { id: PageId; label: string; roles: RoleName[] }[] = [
-  { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
-  { id: 'projects', label: 'Project', roles: ['ADMIN', 'MANAGER'] },
-  { id: 'tasks', label: 'Daftar Tugas', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
-  { id: 'delegation', label: 'Delegasi', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER'] },
-  { id: 'organization', label: 'Organisasi', roles: ['ADMIN'] },
-  { id: 'myTasks', label: 'Tugas Saya', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'workspace', label: 'Workspace', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'projects', label: 'Project', roles: ['ADMIN', 'OWNER', 'MANAGER'] },
+  { id: 'tasks', label: 'Daftar Tugas', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'delegation', label: 'Delegasi', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER'] },
+  { id: 'organization', label: 'Organisasi', roles: ['ADMIN', 'OWNER'] },
+  { id: 'myTasks', label: 'Tugas Saya', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
 ];
 
 export function Sidebar({

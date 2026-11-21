@@ -152,3 +152,186 @@ describe('api client', () => {
     );
   });
 });
+
+describe('api workspace & industri (langkah 2)', () => {
+  const workspace = {
+    id: 'ws_01',
+    name: 'PT Maju Bersama',
+    industry: { id: 'ind_01', name: 'Software House' },
+    owner_id: 'usr_01',
+    is_owner: true,
+    role: { id: 'rol_owner', name: 'OWNER', is_system: true },
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    api.onUnauthorized(null);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('listWorkspaces GET /workspaces mengembalikan daftar + role', async () => {
+    api.putAccessToken('tok123');
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data workspace berhasil diambil',
+      data: [workspace],
+    });
+
+    const result = await api.listWorkspaces();
+
+    expect(result).toEqual([workspace]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer tok123',
+        }),
+      }),
+    );
+  });
+
+  it('createWorkspace POST /workspaces dan menandai pembuat sebagai pemilik', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Workspace berhasil dibuat',
+      data: {
+        id: 'ws_01',
+        name: 'PT Maju Bersama',
+        industry: { id: 'ind_01', name: 'Software House' },
+        owner_id: 'usr_01',
+        role: { id: 'rol_owner', name: 'OWNER', is_system: true },
+      },
+    });
+
+    const result = await api.createWorkspace({
+      name: 'PT Maju Bersama',
+      industry_id: 'ind_01',
+    });
+
+    expect(result.is_owner).toBe(true);
+    expect(result.role.name).toBe('OWNER');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'PT Maju Bersama',
+          industry_id: 'ind_01',
+        }),
+      }),
+    );
+  });
+
+  it('createWorkspace kedua melempar WORKSPACE_LIMIT_REACHED', async () => {
+    mockFetch(409, {
+      success: false,
+      message: 'User sudah memiliki satu workspace',
+      error: { code: 'WORKSPACE_LIMIT_REACHED', details: null },
+    });
+
+    await expect(
+      api.createWorkspace({ name: 'Satu Lagi', industry_id: 'ind_01' }),
+    ).rejects.toMatchObject({
+      code: 'WORKSPACE_LIMIT_REACHED',
+      status: 409,
+    });
+    expect(pesanErrorApi(new ApiError('x', 409, 'WORKSPACE_LIMIT_REACHED'))).toBe(
+      'Kamu sudah memiliki satu workspace.',
+    );
+  });
+
+  it('getWorkspace GET /workspaces/:id', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data workspace berhasil diambil',
+      data: { ...workspace, memberCount: 3 },
+    });
+
+    const result = await api.getWorkspace('ws_01');
+
+    expect(result.memberCount).toBe(3);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01',
+      expect.anything(),
+    );
+  });
+
+  it('listIndustries GET /industries', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data bidang usaha berhasil diambil',
+      data: [
+        {
+          id: 'ind_01',
+          name: 'Software House',
+          description: null,
+          is_system: true,
+        },
+      ],
+    });
+
+    const result = await api.listIndustries();
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe('Software House');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/industries',
+      expect.anything(),
+    );
+  });
+
+  it('createIndustry POST /industries', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Bidang usaha berhasil ditambahkan',
+      data: {
+        id: 'ind_99',
+        name: 'Rumah Makan',
+        description: 'Kuliner',
+        is_system: false,
+      },
+    });
+
+    const result = await api.createIndustry({
+      name: 'Rumah Makan',
+      description: 'Kuliner',
+    });
+
+    expect(result.id).toBe('ind_99');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/industries',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'Rumah Makan', description: 'Kuliner' }),
+      }),
+    );
+  });
+
+  it('getProjectSuggestions GET /industries/:id/project-suggestions', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Saran proyek berhasil diambil',
+      data: [
+        {
+          id: 'tpl_01',
+          name: 'Aplikasi Absensi Siswa',
+          description: 'Template proyek absensi',
+          industry: { id: 'ind_01', name: 'Software House' },
+        },
+      ],
+    });
+
+    const result = await api.getProjectSuggestions('ind_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe('Aplikasi Absensi Siswa');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/industries/ind_01/project-suggestions',
+      expect.anything(),
+    );
+  });
+});

@@ -10,7 +10,15 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
-import api, { type PublicUser } from "./utils/api";
+import { WorkspacePage } from "./pages/WorkspacePage";
+import api, { type PublicUser, type Workspace } from "./utils/api";
+import {
+  labelRoleApi,
+  readActiveWorkspaceId,
+  resolveActiveWorkspaceId,
+  roleNameToGateRole,
+  saveActiveWorkspaceId,
+} from "./utils/workspace";
 import type {
   PageId,
   Project,
@@ -24,7 +32,7 @@ function App() {
   const [page, setPage] = useState<PageId>(() =>
     api.getAccessToken() ? "dashboard" : "login",
   );
-  const [role, setRole] = useState<RoleName>("MANAGER");
+  const [role, setRole] = useState<RoleName>("MEMBER");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       return localStorage.getItem("ambado-theme") === "dark" ? "dark" : "light";
@@ -104,7 +112,68 @@ function App() {
     await api.logout();
     setUser(null);
     setAuthNotice(null);
+    setWorkspaces([]);
+    setActiveWorkspaceId(null);
+    saveActiveWorkspaceId(null);
+    setRole("MEMBER");
     setPage("login");
+  };
+
+  // --- Workspace (Tahap 2 langkah 2): daftar dari API + aktif tersimpan. ---
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    () => readActiveWorkspaceId(),
+  );
+
+  const activeWorkspace =
+    workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
+
+  // Muat workspace setelah user terotentikasi (login / pulih sesi).
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    let cancelled = false;
+    api
+      .listWorkspaces()
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
+        setWorkspaces(items);
+        const resolved = resolveActiveWorkspaceId(
+          items,
+          readActiveWorkspaceId(),
+        );
+        saveActiveWorkspaceId(resolved);
+        setActiveWorkspaceId(resolved);
+        const active = items.find((w) => w.id === resolved) ?? null;
+        if (active) {
+          setRole(roleNameToGateRole(active.role.name));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspaces([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleSelectWorkspace = (id: string) => {
+    saveActiveWorkspaceId(id);
+    setActiveWorkspaceId(id);
+    const ws = workspaces.find((w) => w.id === id);
+    if (ws) {
+      setRole(roleNameToGateRole(ws.role.name));
+    }
+  };
+
+  const handleWorkspaceCreated = (ws: Workspace) => {
+    setWorkspaces((prev) => [...prev, ws]);
+    handleSelectWorkspace(ws.id);
   };
 
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
@@ -171,8 +240,12 @@ function App() {
               onToggleTheme={() =>
                 setTheme((t) => (t === "dark" ? "light" : "dark"))
               }
-              role={role}
-              onRoleChange={setRole}
+              workspaceName={activeWorkspace?.name ?? null}
+              roleLabel={
+                activeWorkspace
+                  ? labelRoleApi(activeWorkspace.role.name)
+                  : null
+              }
               user={user}
               onLogout={handleLogout}
             />
@@ -222,6 +295,14 @@ function App() {
             {page === "organization" && <OrganizationPage />}
             {page === "myTasks" && (
               <MyTasksPage tasks={taskList} onUpdateStatus={updateTaskStatus} />
+            )}
+            {page === "workspace" && (
+              <WorkspacePage
+                workspaces={workspaces}
+                activeWorkspace={activeWorkspace}
+                onSelectWorkspace={handleSelectWorkspace}
+                onWorkspaceCreated={handleWorkspaceCreated}
+              />
             )}
           </main>
         </div>
