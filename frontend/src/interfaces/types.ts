@@ -4,7 +4,7 @@ export interface NavItem {
   label: string
 }
 
-export type PageId = 'dashboard' | 'projects' | 'tasks' | 'taskDetail' | 'delegation' | 'organization' | 'myTasks';
+export type PageId = 'dashboard' | 'projects' | 'tasks' | 'taskDetail' | 'delegation' | 'organization' | 'myTasks' | 'login' | 'register';
 
 export type RoleName = 'ADMIN' | 'MANAGER' | 'DIVISION_LEADER' | 'MEMBER';
 

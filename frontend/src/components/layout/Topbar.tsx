@@ -1,7 +1,8 @@
 import type { ChangeEvent } from 'react';
 import type { PageId, RoleName } from '../../interfaces/types';
+import type { PublicUser } from '../../utils/api';
 import { ROLE_LABELS } from '../../data/mockData';
-import { btnClass } from '../ui/UiClasses';
+import { btnClass, btnRedClass } from '../ui/UiClasses';
 
 const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   dashboard: { title: 'Dashboard', sub: 'Ringkasan progres & analitik' },
@@ -11,6 +12,8 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   delegation: { title: 'Delegasi Tugas', sub: 'Delegasi berjenjang ke divisi & anggota' },
   organization: { title: 'Organisasi', sub: 'Divisi, anggota, dan role (RBAC)' },
   myTasks: { title: 'Tugas Saya', sub: 'Tugas yang ditugaskan ke kamu' },
+  login: { title: 'Masuk', sub: 'Masuk ke AmbaDo' },
+  register: { title: 'Daftar', sub: 'Buat akun AmbaDo' },
 };
 
 export function Topbar({
@@ -19,12 +22,16 @@ export function Topbar({
   onToggleTheme,
   role,
   onRoleChange,
+  user,
+  onLogout,
 }: {
   page: PageId;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   role: RoleName;
   onRoleChange: (role: RoleName) => void;
+  user?: PublicUser | null;
+  onLogout?: () => void;
 }) {
   const meta = PAGE_TITLES[page];
 
@@ -50,6 +57,17 @@ export function Topbar({
           ))}
         </select>
       </label>
+      {user && (
+        <div className="flex flex-col gap-1.5 flex-none">
+          <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">{user.email}</span>
+          <span className="font-bold">{user.name}</span>
+        </div>
+      )}
+      {onLogout && (
+        <button type="button" className={btnRedClass} onClick={onLogout}>
+          Keluar
+        </button>
+      )}
     </div>
   );
 }

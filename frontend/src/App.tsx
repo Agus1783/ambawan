@@ -6,9 +6,11 @@ import { DelegationPage } from "./pages/DelegationPage";
 import { MyTasksPage } from "./pages/MyTasksPage";
 import { OrganizationPage } from "./pages/OrganizationPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
-// import { RegisterPage } from './pages/RegisterPage';
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
+import api, { type PublicUser } from "./utils/api";
 import type {
   PageId,
   Project,
@@ -19,7 +21,9 @@ import type {
 import { projects as seedProjects, tasks as seedTasks } from "./data/mockData";
 
 function App() {
-  const [page, setPage] = useState<PageId>("dashboard");
+  const [page, setPage] = useState<PageId>(() =>
+    api.getAccessToken() ? "dashboard" : "login",
+  );
   const [role, setRole] = useState<RoleName>("MANAGER");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
@@ -36,6 +40,73 @@ function App() {
       //
     }
   }, [theme]);
+
+  // --- Auth (Tahap 2 langkah 1): sesi dari API, bukan mock. ---
+  const [user, setUser] = useState<PublicUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(
+    () => api.getAccessToken() !== null,
+  );
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+
+  // Pulihkan sesi saat mount: token tersimpan -> GET /auth/me.
+  // Tanpa token tidak ada yang perlu diverifikasi (page sudah 'login').
+  useEffect(() => {
+    if (!api.getAccessToken()) {
+      return;
+    }
+    let cancelled = false;
+    api
+      .me()
+      .then((me) => {
+        if (!cancelled) {
+          setUser(me);
+          setPage("dashboard");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPage("login");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAuthChecking(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 401 pada request ber-token (sesi kedaluwarsa) -> kembali ke login.
+  useEffect(() => {
+    api.onUnauthorized(() => {
+      setUser(null);
+      setPage("login");
+    });
+    return () => {
+      api.onUnauthorized(null);
+    };
+  }, []);
+
+  const handleAuthenticated = (authedUser: PublicUser) => {
+    setUser(authedUser);
+    setAuthNotice(null);
+    setPage("dashboard");
+  };
+
+  const handleRegistered = () => {
+    setAuthNotice("Registrasi berhasil. Silakan login dengan akun barumu.");
+    setPage("login");
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setUser(null);
+    setAuthNotice(null);
+    setPage("login");
+  };
+
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
   const [projectList, setProjectList] = useState<Project[]>(seedProjects);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -72,68 +143,89 @@ function App() {
     <div
       className={`min-h-screen bg-mk-bg text-black text-sm dark:bg-[#171717] dark:text-mk-bg ${theme === "dark" ? "dark" : ""}`}
     >
-      <div className="flex min-h-screen">
-        <Sidebar page={page} role={role} onNavigate={navigate} />
-
-        <main className="flex-1 px-6 py-5 pb-10 min-w-0">
-          <Topbar
-            page={page}
-            theme={theme}
-            onToggleTheme={() =>
-              setTheme((t) => (t === "dark" ? "light" : "dark"))
-            }
-            role={role}
-            onRoleChange={setRole}
+      {authChecking ? (
+        <p className="min-h-screen flex items-center justify-center font-mk-mono text-[11px] tracking-[0.14em] uppercase text-mk-muted dark:text-[#a3a3a3]">
+          Memuat sesi...
+        </p>
+      ) : !user ? (
+        page === "register" ? (
+          <RegisterPage
+            onRegistered={handleRegistered}
+            onGoLogin={() => setPage("login")}
           />
+        ) : (
+          <LoginPage
+            notice={authNotice}
+            onAuthenticated={handleAuthenticated}
+            onGoRegister={() => setPage("register")}
+          />
+        )
+      ) : (
+        <div className="flex min-h-screen">
+          <Sidebar page={page} role={role} onNavigate={navigate} />
 
-          {page === "dashboard" && <DashboardPage tasks={taskList} />}
-          {page === "projects" && (
-            <ProjectsPage
-              projects={projectList}
-              tasks={taskList}
-              onAddProject={(p) => setProjectList((prev) => [...prev, p])}
-              onDeleteProject={(id) =>
-                setProjectList((prev) => prev.filter((p) => p.id !== id))
+          <main className="flex-1 px-6 py-5 pb-10 min-w-0">
+            <Topbar
+              page={page}
+              theme={theme}
+              onToggleTheme={() =>
+                setTheme((t) => (t === "dark" ? "light" : "dark"))
               }
-            />
-          )}
-          {page === "tasks" && (
-            <TasksPage
-              tasks={taskList}
-              projects={projectList}
               role={role}
-              onSelectTask={openTaskDetail}
-              onAddTask={(t) => setTaskList((prev) => [t, ...prev])}
+              onRoleChange={setRole}
+              user={user}
+              onLogout={handleLogout}
             />
-          )}
 
-          {page === "taskDetail" && selectedTask && (
-            <TaskDetailPage
-              task={selectedTask}
-              tasks={taskList}
-              onBack={() => navigate("tasks")}
-              onUpdateStatus={updateTaskStatus}
-              comments={comments[selectedTask.id] ?? []}
-              onAddComment={(text) =>
-                setComments((prev) => ({
-                  ...prev,
-                  [selectedTask.id]: [...(prev[selectedTask.id] ?? []), text],
-                }))
-              }
-            />
-          )}
-          {page === "taskDetail" && !selectedTask && (
-            <p className="text-mk-muted">Pilih task dulu dari Daftar Task.</p>
-          )}
-          {page === "delegation" && (
-            <DelegationPage tasks={taskList} onDelegate={delegateTask} />
-          )}
-          {page === "organization" && <OrganizationPage />}
-          {page === "myTasks" && (
-            <MyTasksPage tasks={taskList} onUpdateStatus={updateTaskStatus} />
-          )}
-        </main>
-      </div>
+            {page === "dashboard" && <DashboardPage tasks={taskList} />}
+            {page === "projects" && (
+              <ProjectsPage
+                projects={projectList}
+                tasks={taskList}
+                onAddProject={(p) => setProjectList((prev) => [...prev, p])}
+                onDeleteProject={(id) =>
+                  setProjectList((prev) => prev.filter((p) => p.id !== id))
+                }
+              />
+            )}
+            {page === "tasks" && (
+              <TasksPage
+                tasks={taskList}
+                projects={projectList}
+                role={role}
+                onSelectTask={openTaskDetail}
+                onAddTask={(t) => setTaskList((prev) => [t, ...prev])}
+              />
+            )}
+
+            {page === "taskDetail" && selectedTask && (
+              <TaskDetailPage
+                task={selectedTask}
+                tasks={taskList}
+                onBack={() => navigate("tasks")}
+                onUpdateStatus={updateTaskStatus}
+                comments={comments[selectedTask.id] ?? []}
+                onAddComment={(text) =>
+                  setComments((prev) => ({
+                    ...prev,
+                    [selectedTask.id]: [...(prev[selectedTask.id] ?? []), text],
+                  }))
+                }
+              />
+            )}
+            {page === "taskDetail" && !selectedTask && (
+              <p className="text-mk-muted">Pilih task dulu dari Daftar Task.</p>
+            )}
+            {page === "delegation" && (
+              <DelegationPage tasks={taskList} onDelegate={delegateTask} />
+            )}
+            {page === "organization" && <OrganizationPage />}
+            {page === "myTasks" && (
+              <MyTasksPage tasks={taskList} onUpdateStatus={updateTaskStatus} />
+            )}
+          </main>
+        </div>
+      )}
     </div>
   );
 }
