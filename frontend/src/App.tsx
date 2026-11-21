@@ -11,7 +11,11 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
-import api, { type PublicUser, type Workspace } from "./utils/api";
+import api, {
+  taskFromApiTaskDetail,
+  type PublicUser,
+  type Workspace,
+} from "./utils/api";
 import {
   labelRoleApi,
   readActiveWorkspaceId,
@@ -21,12 +25,11 @@ import {
 } from "./utils/workspace";
 import type {
   PageId,
-  Project,
   RoleName,
   Task,
   TaskStatus,
 } from "./interfaces/types";
-import { projects as seedProjects, tasks as seedTasks } from "./data/mockData";
+import { tasks as seedTasks } from "./data/mockData";
 
 function App() {
   const [page, setPage] = useState<PageId>(() =>
@@ -177,9 +180,8 @@ function App() {
   };
 
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
-  // Daftar project mock masih dipakai TasksPage sampai langkah 4
-  // (tugas dari API + split TasksPage); ProjectsPage sudah dari API.
-  const [projectList] = useState<Project[]>(seedProjects);
+  // Daftar task mock masih dipakai Dashboard/MyTasks/Delegation sampai
+  // langkah berikutnya; TasksPage sudah memuat task sendiri dari API.
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string[]>>({
     tsk_01: ["Progress sudah 70%, API login hampir selesai."],
@@ -187,9 +189,26 @@ function App() {
 
   const navigate = (next: PageId) => setPage(next);
 
+  // Detail task dari API (Tahap 2 langkah 4): ambil GET /tasks/:id lalu
+  // simpan ke taskList supaya TaskDetailPage menampilkan data asli.
+  // Bila gagal (mis. task mock dari halaman lain), tetap pakai task
+  // mock yang sudah ada di taskList.
   const openTaskDetail = (id: string) => {
     setSelectedTaskId(id);
     setPage("taskDetail");
+    api
+      .getTask(id)
+      .then((detail) => {
+        const mapped = taskFromApiTaskDetail(detail);
+        setTaskList((prev) =>
+          prev.some((t) => t.id === id)
+            ? prev.map((t) => (t.id === id ? mapped : t))
+            : [mapped, ...prev],
+        );
+      })
+      .catch(() => {
+        // Tetap di halaman detail dengan task mock bila ada.
+      });
   };
 
   const updateTaskStatus = (id: string, status: TaskStatus) => {
@@ -261,11 +280,9 @@ function App() {
             )}
             {page === "tasks" && (
               <TasksPage
-                tasks={taskList}
-                projects={projectList}
+                activeWorkspace={activeWorkspace}
                 role={role}
                 onSelectTask={openTaskDetail}
-                onAddTask={(t) => setTaskList((prev) => [t, ...prev])}
               />
             )}
 

@@ -1,3 +1,9 @@
+import type {
+  Priority,
+  Task,
+  TaskStatus,
+} from '../interfaces/types';
+
 /**
  * API client AmbaDo (spec v2: envelope `{success, message, data, error}`).
  *
@@ -132,6 +138,77 @@ export interface TemplateTasksPreview {
   tasks: TemplateTaskPreview[];
 }
 
+// --- Tugas (spec v2 §14) ---
+
+/** Satu task dari daftar (GET /tasks): tanpa deskripsi & parent. */
+export interface ApiTask {
+  id: string;
+  workspace_id: string;
+  title: string;
+  status: TaskStatus;
+  priority: Priority;
+  deadline: string | null;
+  project: { id: string; name: string } | null;
+  division: { id: string; name: string } | null;
+  assignee: { id: string; name: string } | null;
+}
+
+/** Detail task (GET /tasks/:id): item daftar + deskripsi & parent. */
+export interface ApiTaskDetail extends ApiTask {
+  description: string | null;
+  parentTask: { id: string; title: string } | null;
+}
+
+/** Hasil buat task (POST /tasks): hanya field ringkas. */
+export interface CreatedTask {
+  id: string;
+  workspace_id: string;
+  title: string;
+  status: TaskStatus;
+  priority: Priority;
+}
+
+/** Body buat task (POST /tasks, spec v2 §14.2). */
+export interface CreateTaskInput {
+  workspace_id: string;
+  project_id: string;
+  parent_task_id?: string;
+  title: string;
+  description?: string;
+  priority: Priority;
+  deadline?: string;
+  assignee_id?: string;
+  division_id?: string;
+}
+
+/**
+ * Petakan item task API ke tipe `Task` lokal (dipakai halaman lain).
+ * Daftar tidak membawa deskripsi/parent, jadi keduanya kosong di sini.
+ */
+export function taskFromApiTask(item: ApiTask): Task {
+  return {
+    id: item.id,
+    projectId: item.project?.id ?? '',
+    parentTaskId: null,
+    title: item.title,
+    description: '',
+    status: item.status,
+    priority: item.priority,
+    deadline: item.deadline ?? '',
+    divisionId: item.division?.id ?? null,
+    assigneeId: item.assignee?.id ?? null,
+  };
+}
+
+/** Petakan detail task API ke tipe `Task` lokal. */
+export function taskFromApiTaskDetail(detail: ApiTaskDetail): Task {
+  return {
+    ...taskFromApiTask(detail),
+    description: detail.description ?? '',
+    parentTaskId: detail.parentTask?.id ?? null,
+  };
+}
+
 interface Envelope {
   success: boolean;
   message: string;
@@ -184,6 +261,15 @@ export function pesanErrorApi(error: unknown): string {
     }
     if (error.code === 'TEMPLATE_NOT_FOUND') {
       return 'Template proyek tidak ditemukan.';
+    }
+    if (error.code === 'TASK_NOT_FOUND') {
+      return 'Task tidak ditemukan.';
+    }
+    if (error.code === 'USER_NOT_FOUND') {
+      return 'Pengguna tidak ditemukan di workspace ini.';
+    }
+    if (error.code === 'DIVISION_NOT_FOUND') {
+      return 'Divisi tidak ditemukan di workspace ini.';
     }
     if (error.code === 'FORBIDDEN') {
       return 'Kamu tidak punya izin untuk aksi ini.';
@@ -428,6 +514,25 @@ async function getTemplateTasksPreview(
   return get<TemplateTasksPreview>(`/projects/templates/${templateId}/tasks`);
 }
 
+// --- Tugas (spec v2 §14) ---
+
+async function listTasks(workspaceId: string): Promise<ApiTask[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({
+    workspace_id: workspaceId,
+    limit: '100',
+  });
+  return get<ApiTask[]>(`/tasks?${query.toString()}`);
+}
+
+async function createTask(input: CreateTaskInput): Promise<CreatedTask> {
+  return post<CreatedTask>('/tasks', input);
+}
+
+async function getTask(id: string): Promise<ApiTaskDetail> {
+  return get<ApiTaskDetail>(`/tasks/${id}`);
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -452,6 +557,9 @@ const api = {
   deleteProject,
   listProjectTemplates,
   getTemplateTasksPreview,
+  listTasks,
+  createTask,
+  getTask,
 };
 
 export default api;

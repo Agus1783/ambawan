@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import api, { ApiError, pesanErrorApi } from '../src/utils/api';
+import api, {
+  ApiError,
+  pesanErrorApi,
+  taskFromApiTask,
+  taskFromApiTaskDetail,
+} from '../src/utils/api';
 
 const user = {
   id: 'usr_01',
@@ -516,5 +521,156 @@ describe('api proyek & template (langkah 3)', () => {
         new ApiError('Template proyek tidak ditemukan', 404, 'TEMPLATE_NOT_FOUND'),
       ),
     ).toBe('Template proyek tidak ditemukan.');
+  });
+});
+
+describe('api tugas (langkah 4)', () => {
+  const apiTask = {
+    id: 'tsk_01',
+    workspace_id: 'ws_01',
+    title: 'Membuat API Login',
+    status: 'IN_PROGRESS',
+    priority: 'P1',
+    deadline: '2026-10-01T23:59:59.000Z',
+    project: { id: 'prj_01', name: 'Sistem Absensi' },
+    division: { id: 'div_it', name: 'IT' },
+    assignee: { id: 'usr_02', name: 'Andi' },
+  };
+
+  it('listTasks GET /tasks?workspace_id=...&limit=100', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data task berhasil diambil',
+      data: [apiTask],
+    });
+
+    const result = await api.listTasks('ws_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.title).toBe('Membuat API Login');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks?workspace_id=ws_01&limit=100',
+      expect.anything(),
+    );
+  });
+
+  it('createTask POST /tasks mengembalikan task ringkas (201)', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Task berhasil dibuat',
+      data: {
+        id: 'tsk_02',
+        workspace_id: 'ws_01',
+        title: 'Membuat endpoint login',
+        status: 'ASSIGNED',
+        priority: 'P1',
+      },
+    });
+
+    const result = await api.createTask({
+      workspace_id: 'ws_01',
+      project_id: 'prj_01',
+      title: 'Membuat endpoint login',
+      description: 'Implementasi endpoint POST /auth/login',
+      priority: 'P1',
+      deadline: '2026-10-01T00:00:00.000Z',
+      assignee_id: 'usr_02',
+    });
+
+    expect(result.id).toBe('tsk_02');
+    expect(result.status).toBe('ASSIGNED');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          workspace_id: 'ws_01',
+          project_id: 'prj_01',
+          title: 'Membuat endpoint login',
+          description: 'Implementasi endpoint POST /auth/login',
+          priority: 'P1',
+          deadline: '2026-10-01T00:00:00.000Z',
+          assignee_id: 'usr_02',
+        }),
+      }),
+    );
+  });
+
+  it('getTask GET /tasks/:id mengembalikan detail + parent', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data task berhasil diambil',
+      data: {
+        ...apiTask,
+        description: 'Membuat endpoint authentication',
+        parentTask: { id: 'tsk_00', title: 'Modul Auth' },
+      },
+    });
+
+    const result = await api.getTask('tsk_01');
+
+    expect(result.description).toBe('Membuat endpoint authentication');
+    expect(result.parentTask?.id).toBe('tsk_00');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01',
+      expect.anything(),
+    );
+  });
+
+  it('taskFromApiTask memetakan relasi bersarang ke field datar', () => {
+    const mapped = taskFromApiTask(apiTask as never);
+
+    expect(mapped).toMatchObject({
+      id: 'tsk_01',
+      projectId: 'prj_01',
+      parentTaskId: null,
+      title: 'Membuat API Login',
+      description: '',
+      status: 'IN_PROGRESS',
+      priority: 'P1',
+      deadline: '2026-10-01T23:59:59.000Z',
+      divisionId: 'div_it',
+      assigneeId: 'usr_02',
+    });
+  });
+
+  it('taskFromApiTask menangani relasi null (deadline kosong, bukan null)', () => {
+    const mapped = taskFromApiTask({
+      ...apiTask,
+      deadline: null,
+      project: null,
+      division: null,
+      assignee: null,
+    } as never);
+
+    expect(mapped.projectId).toBe('');
+    expect(mapped.divisionId).toBeNull();
+    expect(mapped.assigneeId).toBeNull();
+    expect(mapped.deadline).toBe('');
+  });
+
+  it('taskFromApiTaskDetail mengisi deskripsi dan parent', () => {
+    const mapped = taskFromApiTaskDetail({
+      ...apiTask,
+      description: 'Membuat endpoint authentication',
+      parentTask: { id: 'tsk_00', title: 'Modul Auth' },
+    } as never);
+
+    expect(mapped.description).toBe('Membuat endpoint authentication');
+    expect(mapped.parentTaskId).toBe('tsk_00');
+  });
+
+  it('pesanErrorApi TASK_NOT_FOUND, USER_NOT_FOUND, DIVISION_NOT_FOUND', () => {
+    expect(
+      pesanErrorApi(new ApiError('Task tidak ditemukan', 404, 'TASK_NOT_FOUND')),
+    ).toBe('Task tidak ditemukan.');
+    expect(
+      pesanErrorApi(new ApiError('User tidak ditemukan', 404, 'USER_NOT_FOUND')),
+    ).toBe('Pengguna tidak ditemukan di workspace ini.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Division tidak ditemukan', 404, 'DIVISION_NOT_FOUND'),
+      ),
+    ).toBe('Divisi tidak ditemukan di workspace ini.');
   });
 });
