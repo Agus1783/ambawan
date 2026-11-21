@@ -177,7 +177,9 @@ function App() {
   };
 
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
-  const [projectList, setProjectList] = useState<Project[]>(seedProjects);
+  // Daftar project mock masih dipakai TasksPage sampai langkah 4
+  // (tugas dari API + split TasksPage); ProjectsPage sudah dari API.
+  const [projectList] = useState<Project[]>(seedProjects);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string[]>>({
     tsk_01: ["Progress sudah 70%, API login hampir selesai."],
@@ -253,12 +255,8 @@ function App() {
             {page === "dashboard" && <DashboardPage tasks={taskList} />}
             {page === "projects" && (
               <ProjectsPage
-                projects={projectList}
-                tasks={taskList}
-                onAddProject={(p) => setProjectList((prev) => [...prev, p])}
-                onDeleteProject={(id) =>
-                  setProjectList((prev) => prev.filter((p) => p.id !== id))
-                }
+                activeWorkspace={activeWorkspace}
+                canManageProjects={role === "OWNER" || role === "MANAGER"}
               />
             )}
             {page === "tasks" && (

@@ -335,3 +335,186 @@ describe('api workspace & industri (langkah 2)', () => {
     );
   });
 });
+
+describe('api proyek & template (langkah 3)', () => {
+  const project = {
+    id: 'prj_01',
+    workspace_id: 'ws_01',
+    name: 'Sistem Absensi Mahasiswa',
+    description: 'Pengembangan sistem absensi berbasis QR.',
+    deadline: '2026-11-30T00:00:00.000Z',
+    owner_id: 'usr_01',
+    industry_id: 'ind_01',
+    project_template_id: null,
+    taskCount: 4,
+    completedTaskCount: 1,
+  };
+
+  it('listProjects GET /projects?workspace_id=...&limit=100', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data project berhasil diambil',
+      data: [project],
+    });
+
+    const result = await api.listProjects('ws_01');
+
+    expect(result).toEqual([project]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/projects?workspace_id=ws_01&limit=100',
+      expect.anything(),
+    );
+  });
+
+  it('createProject POST /projects mengembalikan project + createdTasks', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Project berhasil dibuat',
+      data: { ...project, project_template_id: 'tpl_01', createdTasks: 3 },
+    });
+
+    const result = await api.createProject({
+      workspace_id: 'ws_01',
+      name: 'Sistem Absensi Mahasiswa',
+      description: 'Pengembangan sistem absensi berbasis QR.',
+      deadline: '2026-11-30T00:00:00.000Z',
+      project_template_id: 'tpl_01',
+    });
+
+    expect(result.createdTasks).toBe(3);
+    expect(result.project_template_id).toBe('tpl_01');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/projects',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          workspace_id: 'ws_01',
+          name: 'Sistem Absensi Mahasiswa',
+          description: 'Pengembangan sistem absensi berbasis QR.',
+          deadline: '2026-11-30T00:00:00.000Z',
+          project_template_id: 'tpl_01',
+        }),
+      }),
+    );
+  });
+
+  it('getProject GET /projects/:id mengembalikan detail + tugas', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data project berhasil diambil',
+      data: {
+        ...project,
+        taskCount: undefined,
+        completedTaskCount: undefined,
+        tasks: [
+          {
+            id: 'tsk_01',
+            title: 'Membuat API Login',
+            description: 'Implementasi endpoint POST /auth/login.',
+            status: 'IN_PROGRESS',
+            priority: 'P1',
+            deadline: '2026-11-05T00:00:00.000Z',
+            assignee_id: null,
+            parent_task_id: null,
+            division_id: null,
+          },
+        ],
+      },
+    });
+
+    const result = await api.getProject('prj_01');
+
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0]?.title).toBe('Membuat API Login');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/projects/prj_01',
+      expect.anything(),
+    );
+  });
+
+  it('deleteProject DELETE /projects/:id berhasil pada 204 tanpa body', async () => {
+    // Respons 204 tidak punya body: response.json() melempar — client
+    // tidak boleh mencoba membacanya.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input');
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(api.deleteProject('prj_01')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/projects/prj_01',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('listProjectTemplates GET /workspaces/:id/project-templates', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Template proyek berhasil diambil',
+      data: [
+        {
+          id: 'tpl_01',
+          industry_id: 'ind_01',
+          workspace_id: null,
+          name: 'Aplikasi Absensi Siswa',
+          description: 'Template proyek absensi',
+          is_system: true,
+        },
+      ],
+    });
+
+    const result = await api.listProjectTemplates('ws_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.is_system).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/project-templates',
+      expect.anything(),
+    );
+  });
+
+  it('getTemplateTasksPreview GET /projects/templates/:id/tasks', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Template tugas berhasil diambil',
+      data: {
+        id: 'tpl_01',
+        name: 'Aplikasi Absensi Siswa',
+        tasks: [
+          {
+            id: 'tt_01',
+            parent_template_id: null,
+            title: 'Analisis kebutuhan',
+            description: null,
+            priority: 'P1',
+            sort_order: 0,
+          },
+        ],
+      },
+    });
+
+    const result = await api.getTemplateTasksPreview('tpl_01');
+
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0]?.title).toBe('Analisis kebutuhan');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/projects/templates/tpl_01/tasks',
+      expect.anything(),
+    );
+  });
+
+  it('pesanErrorApi PROJECT_NOT_FOUND dan TEMPLATE_NOT_FOUND', () => {
+    expect(
+      pesanErrorApi(new ApiError('Project tidak ditemukan', 404, 'PROJECT_NOT_FOUND')),
+    ).toBe('Project tidak ditemukan.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Template proyek tidak ditemukan', 404, 'TEMPLATE_NOT_FOUND'),
+      ),
+    ).toBe('Template proyek tidak ditemukan.');
+  });
+});

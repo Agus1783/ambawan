@@ -64,6 +64,74 @@ export interface ProjectSuggestion {
   industry: { id: string; name: string };
 }
 
+/** Field dasar project (spec v2 §13). */
+export interface ProjectBase {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  deadline: string | null;
+  owner_id: string;
+  industry_id: string | null;
+  project_template_id: string | null;
+}
+
+/** Project dari daftar (GET /projects): membawa jumlah tugas. */
+export interface Project extends ProjectBase {
+  taskCount: number;
+  completedTaskCount: number;
+}
+
+/** Tugas di dalam detail project (GET /projects/:id). */
+export interface ProjectTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  deadline: string | null;
+  assignee_id: string | null;
+  parent_task_id: string | null;
+  division_id: string | null;
+}
+
+/** Detail project: project + daftar tugasnya. */
+export interface ProjectDetail extends ProjectBase {
+  tasks: ProjectTask[];
+}
+
+/** Hasil buat project: project + jumlah tugas yang dibuat dari template. */
+export interface CreatedProject extends ProjectBase {
+  createdTasks: number;
+}
+
+/** Template proyek (spec v2 §13.8): sistem (workspace_id null) atau kustom. */
+export interface ProjectTemplate {
+  id: string;
+  industry_id: string | null;
+  workspace_id: string | null;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+}
+
+/** Satu template tugas di pratinjau (GET /projects/templates/:id/tasks). */
+export interface TemplateTaskPreview {
+  id: string;
+  parent_template_id: string | null;
+  title: string;
+  description: string | null;
+  priority: string;
+  sort_order: number;
+}
+
+/** Pratinjau tugas dari satu template proyek. */
+export interface TemplateTasksPreview {
+  id: string;
+  name: string;
+  tasks: TemplateTaskPreview[];
+}
+
 interface Envelope {
   success: boolean;
   message: string;
@@ -110,6 +178,15 @@ export function pesanErrorApi(error: unknown): string {
     }
     if (error.code === 'WORKSPACE_NOT_FOUND') {
       return 'Workspace tidak ditemukan.';
+    }
+    if (error.code === 'PROJECT_NOT_FOUND') {
+      return 'Project tidak ditemukan.';
+    }
+    if (error.code === 'TEMPLATE_NOT_FOUND') {
+      return 'Template proyek tidak ditemukan.';
+    }
+    if (error.code === 'FORBIDDEN') {
+      return 'Kamu tidak punya izin untuk aksi ini.';
     }
     if (error.code === 'RESOURCE_CONFLICT') {
       return 'Nama itu sudah digunakan.';
@@ -186,6 +263,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       0,
       'NETWORK_ERROR',
     );
+  }
+
+  // DELETE berhasil (204) tidak membawa body JSON.
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   const json = (await response.json().catch(() => null)) as Envelope | null;
@@ -303,6 +385,49 @@ async function getProjectSuggestions(
   );
 }
 
+// --- Proyek & template (spec v2 §13) ---
+
+async function listProjects(workspaceId: string): Promise<Project[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({
+    workspace_id: workspaceId,
+    limit: '100',
+  });
+  return get<Project[]>(`/projects?${query.toString()}`);
+}
+
+async function createProject(input: {
+  workspace_id: string;
+  name: string;
+  description?: string;
+  deadline?: string;
+  project_template_id?: string;
+}): Promise<CreatedProject> {
+  return post<CreatedProject>('/projects', input);
+}
+
+async function getProject(id: string): Promise<ProjectDetail> {
+  return get<ProjectDetail>(`/projects/${id}`);
+}
+
+async function deleteProject(id: string): Promise<void> {
+  await request<void>(`/projects/${id}`, { method: 'DELETE' });
+}
+
+async function listProjectTemplates(
+  workspaceId: string,
+): Promise<ProjectTemplate[]> {
+  return get<ProjectTemplate[]>(
+    `/workspaces/${workspaceId}/project-templates`,
+  );
+}
+
+async function getTemplateTasksPreview(
+  templateId: string,
+): Promise<TemplateTasksPreview> {
+  return get<TemplateTasksPreview>(`/projects/templates/${templateId}/tasks`);
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -321,6 +446,12 @@ const api = {
   listIndustries,
   createIndustry,
   getProjectSuggestions,
+  listProjects,
+  createProject,
+  getProject,
+  deleteProject,
+  listProjectTemplates,
+  getTemplateTasksPreview,
 };
 
 export default api;
