@@ -503,7 +503,33 @@ CREATE TABLE task_attachments (
 
 
 -- =========================================================
--- 14. INVITATIONS (undangan lewat email)
+-- 14. TASK COMMENTS
+-- =========================================================
+
+CREATE TABLE task_comments (
+    id VARCHAR(26) PRIMARY KEY,
+
+    task_id VARCHAR(26) NOT NULL,
+    user_id VARCHAR(26) NOT NULL,
+
+    content TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_comment_task
+        FOREIGN KEY (task_id)
+        REFERENCES tasks(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_comment_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================================================
+-- 15. INVITATIONS (undangan lewat email)
 -- =========================================================
 
 CREATE TABLE invitations (
@@ -556,9 +582,52 @@ CREATE TABLE invitations (
         )
 );
 
+-- =========================================================
+-- 16. PROJECT MEMBERS (anggota proyek saja)
+-- =========================================================
+-- Anggota proyek yang diundang lewat undangan proyek
+-- (`invitations.project_id` terisi). Mereka BUKAN anggota
+-- workspace: tidak melihat workspace, divisi, atau proyek
+-- lain — hanya proyek ini, dengan izin dari role yang
+-- tercantum pada undangan (role workspace_roles yang sama,
+-- ON DELETE RESTRICT seperti invitations).
+-- Owner proyek TIDAK butuh baris di sini: ia anggota
+-- workspace dan mengakses proyek lewat keanggotaan
+-- workspace-nya. Proyek dihapus -> anggotanya ikut terhapus
+-- (ON DELETE CASCADE); user dihapus -> barisnya terhapus.
+
+CREATE TABLE project_members (
+    id VARCHAR(26) PRIMARY KEY,
+
+    project_id VARCHAR(26) NOT NULL,
+    user_id VARCHAR(26) NOT NULL,
+    role_id VARCHAR(26) NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_project_member_project
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_project_member_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_project_member_role
+        FOREIGN KEY (role_id)
+        REFERENCES workspace_roles(id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_project_member
+        UNIQUE (project_id, user_id)
+);
+
 
 -- =========================================================
--- 15. INDEX
+-- 16. INDEX
 -- =========================================================
 
 CREATE INDEX idx_users_google_id
@@ -639,6 +708,12 @@ ON task_history(user_id);
 CREATE INDEX idx_task_attachments_task_id
 ON task_attachments(task_id);
 
+CREATE INDEX idx_task_comments_task_id
+ON task_comments(task_id);
+
+CREATE INDEX idx_task_comments_user_id
+ON task_comments(user_id);
+
 CREATE INDEX idx_invitations_workspace_id
 ON invitations(workspace_id);
 
@@ -656,7 +731,7 @@ ON invitations(status);
 
 
 -- =========================================================
--- 16. UPDATED_AT TRIGGER
+-- 17. UPDATED_AT TRIGGER
 -- =========================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -725,7 +800,7 @@ EXECUTE FUNCTION update_updated_at();
 
 
 -- =========================================================
--- 17. SEED — DATA SISTEM (contoh)
+-- 18. SEED — DATA SISTEM (contoh)
 -- =========================================================
 -- Baris-baris di bawah ini di-seed oleh aplikasi saat
 -- pertama kali berjalan. Owner workspace boleh menambah
