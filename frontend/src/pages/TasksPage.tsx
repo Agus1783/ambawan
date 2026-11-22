@@ -9,10 +9,9 @@
 //   TaskTable, TaskPagination, dan hook useTaskFilter di
 //   src/components/tasks/.
 //
-// Batasan: nama project + penanggung jawab di tabel masih dari
-// mockData sampai daftar project/anggota dari API dipakai di sini.
-// Pilihan divisi + penanggung jawab di form dan filter divisi
-// sudah dari API (Tahap 2 langkah 6).
+// Nama project + penanggung jawab di tabel (Tahap 2 langkah 9):
+// diambil dari daftar project/anggota API yang dimuat halaman ini
+// (diteruskan ke TaskTable); task mock tetap memakai lookup lama.
 import { useEffect, useState } from 'react';
 import type { RoleName, Task } from '../interfaces/types';
 import api, {
@@ -228,7 +227,12 @@ export function TasksPage({
             }}
           />
 
-          <TaskTable tasks={filter.pageItems} onSelectTask={onSelectTask} />
+          <TaskTable
+            tasks={filter.pageItems}
+            projects={projects}
+            members={members}
+            onSelectTask={onSelectTask}
+          />
 
           <TaskPagination
             safePage={filter.safePage}

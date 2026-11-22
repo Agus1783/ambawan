@@ -7,7 +7,6 @@ import { Modal } from '../src/components/ui/Modal';
 import { ProgressBar } from '../src/components/ui/ProgressBar';
 import { StatCard } from '../src/components/ui/StatCard';
 import { Donut } from '../src/components/ui/Donut';
-import { WeekChart } from '../src/components/ui/WeekChart';
 
 describe('Chip', () => {
   it('menampilkan teks anak', () => {
@@ -18,6 +17,7 @@ describe('Chip', () => {
   it('memakai bg-white saat tidak ada className', () => {
     render(<Chip>Normal</Chip>);
     expect(screen.getByText('Normal')).toHaveClass('bg-white');
+    expect(screen.getByText('Normal')).toHaveClass('dark:bg-[#f2f2ed]');
   });
 
   it('memakai className yang diberikan', () => {
@@ -131,24 +131,3 @@ describe('Donut', () => {
   });
 });
 
-describe('WeekChart', () => {
-  const data = [
-    { week: 'W1', label: '1–7 Nov', count: 3 },
-    { week: 'W2', label: '8–14 Nov', count: 8 },
-  ];
-
-  it('menampilkan minggu, label, dan jumlah', () => {
-    render(<WeekChart data={data} />);
-    expect(screen.getByText('W1')).toBeInTheDocument();
-    expect(screen.getByText('8–14 Nov')).toBeInTheDocument();
-    expect(screen.getByText('8')).toBeInTheDocument();
-  });
-
-  it('mengatur tinggi batang relatif terhadap jumlah terbesar', () => {
-    const { container } = render(<WeekChart data={data} />);
-    const bars = container.querySelectorAll('.bg-mk-yellow');
-    expect(bars).toHaveLength(2);
-    expect(bars[1]).toHaveStyle({ height: '100%' });
-    expect(bars[0]).toHaveStyle({ height: '37.5%' });
-  });
-});

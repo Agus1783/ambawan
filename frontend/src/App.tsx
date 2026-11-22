@@ -293,7 +293,7 @@ function App() {
         )
       ) : (
         <div className="flex min-h-screen">
-          <Sidebar page={page} role={role} onNavigate={navigate} />
+          <Sidebar page={page} role={role} userName={user.name} onNavigate={navigate} />
 
           <main className="flex-1 px-6 py-5 pb-10 min-w-0">
             <Topbar

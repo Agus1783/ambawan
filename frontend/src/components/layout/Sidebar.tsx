@@ -1,6 +1,5 @@
 import type { PageId, RoleName } from '../../interfaces/types';
-import { CURRENT_USER_ID, ROLE_LABELS } from '../../data/mockData';
-import { userName } from '../../utils/helpers';
+import { ROLE_LABELS } from '../../data/mockData';
 
 const NAV: { id: PageId; label: string; roles: RoleName[] }[] = [
   { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
@@ -15,10 +14,13 @@ const NAV: { id: PageId; label: string; roles: RoleName[] }[] = [
 export function Sidebar({
   page,
   role,
+  userName,
   onNavigate,
 }: {
   page: PageId;
   role: RoleName;
+  /** Nama user yang sedang login (dari GET /auth/me), bukan mock. */
+  userName: string;
   onNavigate: (page: PageId) => void;
 }) {
   return (
@@ -48,8 +50,8 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto border-t-2 border-dashed border-black dark:border-mk-bg pt-3">
-        <div className="font-extrabold uppercase">{userName(CURRENT_USER_ID)}</div>
-        <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{ROLE_LABELS[role]} · MOCKUP</div>
+        <div className="font-extrabold uppercase">{userName}</div>
+        <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{ROLE_LABELS[role]}</div>
       </div>
     </aside>
   );

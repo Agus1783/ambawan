@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { Task } from '../src/interfaces/types';
+import type { Project, WorkspaceMember } from '../src/utils/api';
 import { TaskTable } from '../src/components/tasks/TaskTable';
 
 function makeTask(overrides: Partial<Task> & { id: string }): Task {
@@ -40,5 +41,53 @@ describe('TaskTable (langkah 5: perbaikan dark-mode)', () => {
 
     screen.getByText('Membuat API Login').click();
     expect(onSelectTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('menampilkan nama project + penanggung jawab dari daftar API, bukan id mentah', () => {
+    const projects: Project[] = [
+      {
+        id: '11111111-2222-3333-4444-555555555555',
+        workspace_id: 'ws-1',
+        name: 'Aplikasi Absensi',
+        description: null,
+        deadline: null,
+        owner_id: 'u-1',
+        industry_id: null,
+        project_template_id: null,
+        taskCount: 1,
+        completedTaskCount: 0,
+      },
+    ];
+    const members: WorkspaceMember[] = [
+      {
+        id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        name: 'Sinta Dewi',
+        email: 'sinta@example.com',
+        role: { id: 'role-member', name: 'MEMBER', is_system: true },
+      },
+    ];
+    render(
+      <TaskTable
+        tasks={[
+          makeTask({
+            id: 't1',
+            projectId: '11111111-2222-3333-4444-555555555555',
+            assigneeId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          }),
+        ]}
+        projects={projects}
+        members={members}
+        onSelectTask={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Aplikasi Absensi')).toBeInTheDocument();
+    expect(screen.getByText('Sinta Dewi')).toBeInTheDocument();
+    expect(
+      screen.queryByText('11111111-2222-3333-4444-555555555555'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+    ).not.toBeInTheDocument();
   });
 });
