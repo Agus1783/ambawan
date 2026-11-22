@@ -405,6 +405,18 @@ export function pesanErrorApi(error: unknown): string {
     if (error.code === 'INVITATION_EXPIRED') {
       return 'Undangan sudah kedaluwarsa.';
     }
+    if (error.code === 'ATTACHMENT_NOT_FOUND') {
+      return 'Lampiran tidak ditemukan.';
+    }
+    if (error.code === 'COMMENT_NOT_FOUND') {
+      return 'Komentar tidak ditemukan.';
+    }
+    if (error.code === 'UNSUPPORTED_FILE_TYPE') {
+      return 'Tipe file tidak didukung. Format yang diizinkan: gambar, PDF, dokumen, spreadsheet, teks, atau ZIP.';
+    }
+    if (error.code === 'FILE_TOO_LARGE') {
+      return 'Ukuran file terlalu besar (maksimal 10 MB).';
+    }
     if (error.code === 'FORBIDDEN') {
       return 'Kamu tidak punya izin untuk aksi ini.';
     }
@@ -487,7 +499,42 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       'NETWORK_ERROR',
     );
   }
+  return readEnvelope<T>(response, token);
+}
 
+/**
+ * Kirim multipart/form-data (upload lampiran): tanpa header
+ * `Content-Type` JSON supaya browser memasang boundary sendiri.
+ */
+async function requestFormData<T>(path: string, form: FormData): Promise<T> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      body: form,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      'Tidak dapat terhubung ke server. Pastikan backend sudah berjalan.',
+      0,
+      'NETWORK_ERROR',
+    );
+  }
+  return readEnvelope<T>(response, token);
+}
+
+/** Baca envelope `{success, message, data, error}` dari satu respons. */
+async function readEnvelope<T>(
+  response: Response,
+  token: string | null,
+): Promise<T> {
   // DELETE berhasil (204) tidak membawa body JSON.
   if (response.status === 204) {
     return undefined as T;
@@ -695,6 +742,92 @@ async function listSubtasks(id: string): Promise<ApiSubtask[]> {
   return get<ApiSubtask[]>(`/tasks/${id}/subtasks`);
 }
 
+// --- Riwayat, lampiran & komentar task (spec v2 §15–§17) ---
+
+/** Satu entri riwayat task (GET /tasks/:id/history, spec v2 §15.1). */
+export interface ApiTaskHistory {
+  id: string;
+  action: string;
+  oldStatus: TaskStatus | null;
+  newStatus: TaskStatus | null;
+  description: string | null;
+  user: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+/** Satu lampiran task (GET /tasks/:id/attachments, spec v2 §16.2). */
+export interface ApiTaskAttachment {
+  id: string;
+  fileName: string;
+  fileType: string;
+  // file_size disimpan BigInt di DB; server mengembalikannya
+  // sebagai number, null bila tidak ada.
+  fileSize: number | null;
+  fileUrl: string;
+}
+
+/** Satu komentar task (GET /tasks/:id/comments, spec v2 §17.2). */
+export interface ApiTaskComment {
+  id: string;
+  task_id: string;
+  content: string;
+  user: { id: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+async function listTaskHistory(id: string): Promise<ApiTaskHistory[]> {
+  return get<ApiTaskHistory[]>(`/tasks/${id}/history`);
+}
+
+async function listAttachments(id: string): Promise<ApiTaskAttachment[]> {
+  return get<ApiTaskAttachment[]>(`/tasks/${id}/attachments`);
+}
+
+async function uploadAttachment(
+  id: string,
+  file: File,
+): Promise<ApiTaskAttachment> {
+  // Field `file` (multipart/form-data, spec v2 §16.1); batas
+  // 10 MB + tipe yang diizinkan ditegakkan server (multer).
+  const form = new FormData();
+  form.append('file', file);
+  return requestFormData<ApiTaskAttachment>(`/tasks/${id}/attachments`, form);
+}
+
+async function deleteAttachment(
+  taskId: string,
+  attachmentId: string,
+): Promise<void> {
+  await request<void>(`/tasks/${taskId}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+  });
+}
+
+async function listComments(id: string): Promise<ApiTaskComment[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({ limit: '100' });
+  return get<ApiTaskComment[]>(
+    `/tasks/${id}/comments?${query.toString()}`,
+  );
+}
+
+async function createComment(
+  id: string,
+  content: string,
+): Promise<ApiTaskComment> {
+  return post<ApiTaskComment>(`/tasks/${id}/comments`, { content });
+}
+
+async function deleteComment(
+  taskId: string,
+  commentId: string,
+): Promise<void> {
+  await request<void>(`/tasks/${taskId}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
+}
+
 // --- Divisi (spec v2 §12) ---
 
 async function listDivisions(workspaceId: string): Promise<Division[]> {
@@ -842,6 +975,13 @@ const api = {
   deleteTask,
   delegateTask,
   listSubtasks,
+  listTaskHistory,
+  listAttachments,
+  uploadAttachment,
+  deleteAttachment,
+  listComments,
+  createComment,
+  deleteComment,
   listDivisions,
   createDivision,
   getDivision,

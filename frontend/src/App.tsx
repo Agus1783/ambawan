@@ -342,6 +342,7 @@ function App() {
                 workspaceId={activeWorkspace?.id ?? null}
                 role={role}
                 isApiTask={apiTaskIds.has(selectedTask.id)}
+                currentUserId={user.id}
                 onBack={() => navigate("tasks")}
                 onUpdateStatus={updateTaskStatus}
                 onDeleteTask={deleteTaskApi}

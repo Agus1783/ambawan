@@ -1151,4 +1151,222 @@ describe('api divisi, anggota & undangan (langkah 6)', () => {
       ),
     ).toBe('Nama division sudah dipakai di workspace ini');
   });
+
+  it('listTaskHistory mengembalikan riwayat task dari API', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'History task berhasil diambil',
+      data: [
+        {
+          id: 'hst_01',
+          action: 'STATUS_CHANGED',
+          oldStatus: 'ASSIGNED',
+          newStatus: 'IN_PROGRESS',
+          description: null,
+          user: { id: 'usr_02', name: 'Andi Pratama' },
+          createdAt: '2026-09-27T10:00:00.000Z',
+        },
+      ],
+    });
+
+    const result = await api.listTaskHistory('tsk_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('STATUS_CHANGED');
+    expect(result[0].user?.name).toBe('Andi Pratama');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/history',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+  });
+
+  it('listAttachments mengembalikan lampiran task dari API', async () => {
+    mockFetch(200, {
+      success: true,
+      message: 'Attachment berhasil diambil',
+      data: [
+        {
+          id: 'att_01',
+          fileName: 'api-documentation.pdf',
+          fileType: 'application/pdf',
+          fileSize: 245760,
+          fileUrl: 'https://storage.example.com/att_01.pdf',
+        },
+        {
+          id: 'att_02',
+          fileName: 'catatan.txt',
+          fileType: 'text/plain',
+          fileSize: null,
+          fileUrl: 'https://storage.example.com/att_02.txt',
+        },
+      ],
+    });
+
+    const result = await api.listAttachments('tsk_01');
+
+    expect(result).toHaveLength(2);
+    expect(result[0].fileName).toBe('api-documentation.pdf');
+    expect(result[1].fileSize).toBeNull();
+  });
+
+  it('uploadAttachment mengirim FormData field file dan mengembalikan lampiran', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Attachment berhasil diupload',
+      data: {
+        id: 'att_01',
+        fileName: 'dokumen.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1234,
+        fileUrl: 'https://storage.example.com/att_01.pdf',
+      },
+    });
+
+    const file = new File(['isi'], 'dokumen.pdf', {
+      type: 'application/pdf',
+    });
+    const result = await api.uploadAttachment('tsk_01', file);
+
+    expect(result.id).toBe('att_01');
+    expect(result.fileUrl).toBe('https://storage.example.com/att_01.pdf');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/attachments',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(FormData),
+      }),
+    );
+    const body = fetchMock.mock.calls[0][1].body as FormData;
+    expect(body.get('file')).toBe(file);
+  });
+
+  it('uploadAttachment gagal 400 FILE_TOO_LARGE melempar ApiError', async () => {
+    mockFetch(400, {
+      success: false,
+      message: 'Ukuran file terlalu besar',
+      error: { code: 'FILE_TOO_LARGE', details: null },
+    });
+
+    const file = new File(['isi'], 'besar.zip', { type: 'application/zip' });
+    await expect(api.uploadAttachment('tsk_01', file)).rejects.toMatchObject({
+      code: 'FILE_TOO_LARGE',
+      status: 400,
+    });
+  });
+
+  it('deleteAttachment memanggil DELETE dan mengembalikan void', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Attachment berhasil dihapus',
+      data: null,
+    });
+
+    await api.deleteAttachment('tsk_01', 'att_01');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/attachments/att_01',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('listComments mengembalikan komentar task dari API (limit 100)', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Komentar berhasil diambil',
+      data: [
+        {
+          id: 'cmt_01',
+          task_id: 'tsk_01',
+          content: 'Progress sudah 70%.',
+          user: { id: 'usr_02', name: 'Andi Pratama' },
+          created_at: '2026-11-01T08:00:00.000Z',
+          updated_at: '2026-11-01T08:00:00.000Z',
+        },
+      ],
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
+    });
+
+    const result = await api.listComments('tsk_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe('Progress sudah 70%.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/comments?limit=100',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+  });
+
+  it('createComment mengirim content dan mengembalikan komentar baru', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Komentar berhasil ditambahkan',
+      data: {
+        id: 'cmt_02',
+        task_id: 'tsk_01',
+        content: 'Siap direview.',
+        user: { id: 'usr_02', name: 'Andi Pratama' },
+        created_at: '2026-11-02T09:00:00.000Z',
+        updated_at: '2026-11-02T09:00:00.000Z',
+      },
+    });
+
+    const result = await api.createComment('tsk_01', 'Siap direview.');
+
+    expect(result.id).toBe('cmt_02');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/comments',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ content: 'Siap direview.' }),
+      }),
+    );
+  });
+
+  it('deleteComment memanggil DELETE dan mengembalikan void', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Komentar berhasil dihapus',
+      data: null,
+    });
+
+    await api.deleteComment('tsk_01', 'cmt_01');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/comments/cmt_01',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('pesanErrorApi kode baru lampiran dan komentar', () => {
+    expect(
+      pesanErrorApi(
+        new ApiError('Attachment tidak ditemukan', 404, 'ATTACHMENT_NOT_FOUND'),
+      ),
+    ).toBe('Lampiran tidak ditemukan.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Komentar tidak ditemukan', 404, 'COMMENT_NOT_FOUND'),
+      ),
+    ).toBe('Komentar tidak ditemukan.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Tipe file tidak didukung', 400, 'UNSUPPORTED_FILE_TYPE'),
+      ),
+    ).toBe(
+      'Tipe file tidak didukung. Format yang diizinkan: gambar, PDF, dokumen, spreadsheet, teks, atau ZIP.',
+    );
+    expect(
+      pesanErrorApi(
+        new ApiError('Ukuran file terlalu besar', 400, 'FILE_TOO_LARGE'),
+      ),
+    ).toBe('Ukuran file terlalu besar (maksimal 10 MB).');
+  });
 });

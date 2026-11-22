@@ -1,5 +1,6 @@
-// Halaman Detail Task (Tahap 2 langkah 5): status, subtask, delegasi,
-// dan hapus dari API untuk task yang berasal dari API.
+// Halaman Detail Task (Tahap 2 langkah 5–7): status, subtask, delegasi,
+// hapus, lampiran, komentar, dan riwayat dari API untuk task yang
+// berasal dari API.
 //
 // - Ubah status (PUT /tasks/:id/status): semua role boleh; gagal dari
 //   server ditampilkan, bukan diubah diam-diam.
@@ -10,13 +11,24 @@
 //   hanya OWNER/MANAGER/DIVISION_LEADER (sesuai seed backend).
 // - Hapus task (DELETE /tasks/:id, 204) dengan modal konfirmasi;
 //   subtask ikut terhapus di server (FK cascade).
+// - Lampiran (langkah 7, spec §16): daftar (GET /tasks/:id/attachments),
+//   upload (POST multipart field `file`, maks 10 MB, tipe dibatasi
+//   server), hapus (DELETE .../attachments/:attachmentId) — hapus
+//   hanya OWNER/MANAGER/DIVISION_LEADER (izin `attachment.delete`).
+//   File disimpan Supabase Storage bila dikonfigurasi, atau lokal
+//   `uploads/` bila tidak (backend `src/utils/storage.ts`);
+//   metadata + respons API sama di kedua mode.
+// - Komentar (langkah 7, spec §17): daftar (GET /tasks/:id/comments),
+//   tambah (POST {content}, maks 5000 karakter), hapus
+//   (DELETE .../comments/:commentId) — hapus oleh penulisnya sendiri
+//   atau pemegang izin `task.delete`.
+// - Riwayat (langkah 7, spec §15): timeline (GET /tasks/:id/history);
+//   dimuat ulang setelah aksi yang mencatat riwayat (ubah status,
+//   delegasi, upload/hapus lampiran, tambah/hapus komentar).
 // - Task mock (dari Dashboard/MyTasks/Delegation, belum ada di
 //   backend) tetap memakai perilaku lokal lama: status diubah lokal,
-//   subtask dari taskList, tanpa tombol delegasi/hapus API.
-//
-// Batasan: pilihan user/divisi di form delegasi dari API
-// (Tahap 2 langkah 6) — dimuat untuk workspace aktif saat halaman
-// dibuka, jadi id yang dipilih selalu anggota workspace.
+//   subtask dari taskList, lampiran/komentar/riwayat dari mockData,
+//   tanpa tombol delegasi/hapus API.
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { RoleName, Task, TaskStatus } from '../interfaces/types';
@@ -31,6 +43,9 @@ import { divisionName, formatFileSize, projectName, userName } from '../utils/he
 import api, {
   pesanErrorApi,
   type ApiSubtask,
+  type ApiTaskAttachment,
+  type ApiTaskComment,
+  type ApiTaskHistory,
   type DelegateTaskInput,
   type Division,
   type WorkspaceMember,
@@ -67,6 +82,57 @@ const CAN_DELEGATE_TASK: RoleName[] = [
   'MANAGER',
   'DIVISION_LEADER',
 ];
+// Hapus lampiran: izin `attachment.delete` (seed backend) hanya
+// OWNER/MANAGER/DIVISION_LEADER; MEMBER boleh upload tapi tidak hapus.
+const CAN_DELETE_ATTACHMENT: RoleName[] = [
+  'ADMIN',
+  'OWNER',
+  'MANAGER',
+  'DIVISION_LEADER',
+];
+
+/** Batas upload server (backend `src/middlewares/upload.ts`): 10 MB. */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** Tipe file yang diizinkan server (cermin `upload.ts`). */
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+
+/** Label aksi riwayat (spec §15.1 + §19: COMMENT_ADDED/COMMENT_DELETED). */
+const HISTORY_ACTION_LABELS: Record<string, string> = {
+  CREATED: 'Dibuat',
+  UPDATED: 'Diperbarui',
+  DELEGATED: 'Didelegasikan',
+  STATUS_CHANGED: 'Status diubah',
+  ATTACHMENT_ADDED: 'Lampiran ditambahkan',
+  ATTACHMENT_DELETED: 'Lampiran dihapus',
+  COMMENT_ADDED: 'Komentar ditambahkan',
+  COMMENT_DELETED: 'Komentar dihapus',
+};
+
+/** Format ISO `2026-09-27T10:00:00Z` jadi tanggal-waktu lokal singkat. */
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export function TaskDetailPage({
   task,
@@ -74,6 +140,7 @@ export function TaskDetailPage({
   workspaceId,
   role,
   isApiTask,
+  currentUserId,
   onBack,
   onUpdateStatus,
   onDeleteTask,
@@ -86,6 +153,7 @@ export function TaskDetailPage({
   workspaceId: string | null;
   role: RoleName;
   isApiTask: boolean;
+  currentUserId: string;
   onBack: () => void;
   onUpdateStatus: (id: string, status: TaskStatus) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
@@ -114,6 +182,44 @@ export function TaskDetailPage({
   const [subtaskDeadline, setSubtaskDeadline] = useState('');
   const [subtaskBusy, setSubtaskBusy] = useState(false);
   const [subtaskError, setSubtaskError] = useState<string | null>(null);
+
+  // Lampiran dari API (task API) atau dari mockData (task mock).
+  const [apiAttachments, setApiAttachments] = useState<ApiTaskAttachment[]>(
+    [],
+  );
+  const [attachmentsLoadedFor, setAttachmentsLoadedFor] = useState<
+    string | null
+  >(null);
+  const attachmentsLoading = isApiTask && attachmentsLoadedFor !== task.id;
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(
+    null,
+  );
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
+    string | null
+  >(null);
+
+  // Komentar dari API (task API) atau dari props App (task mock).
+  const [apiComments, setApiComments] = useState<ApiTaskComment[]>([]);
+  const [commentsLoadedFor, setCommentsLoadedFor] = useState<string | null>(
+    null,
+  );
+  const commentsLoading = isApiTask && commentsLoadedFor !== task.id;
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null,
+  );
+
+  // Riwayat dari API (task API) atau dari mockData (task mock).
+  const [apiHistory, setApiHistory] = useState<ApiTaskHistory[]>([]);
+  const [historyLoadedFor, setHistoryLoadedFor] = useState<string | null>(
+    null,
+  );
+  const historyLoading = isApiTask && historyLoadedFor !== task.id;
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Delegasi (task API saja): pilihan user/divisi dari API.
   const [delegateKind, setDelegateKind] = useState<'user' | 'division'>(
@@ -168,6 +274,93 @@ export function TaskDetailPage({
     }
     let cancelled = false;
     void fetchSubtasks(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchAttachments = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listAttachments(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiAttachments(items);
+        setAttachmentsError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setAttachmentsError(pesanErrorApi(err));
+        setApiAttachments([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setAttachmentsLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchAttachments(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchComments = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listComments(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiComments(items);
+        setCommentsError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setCommentsError(pesanErrorApi(err));
+        setApiComments([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setCommentsLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchComments(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchHistory = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listTaskHistory(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiHistory(items);
+        setHistoryError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setHistoryError(pesanErrorApi(err));
+        setApiHistory([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setHistoryLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchHistory(task.id, () => cancelled);
     return () => {
       cancelled = true;
     };
@@ -245,31 +438,182 @@ export function TaskDetailPage({
           assigneeName: userName(s.assigneeId),
         }));
 
-  const taskHistory = history.filter((h) => h.taskId === task.id);
-  const taskAttachments = attachmentList.filter((a) => a.taskId === task.id);
+  // Lampiran: bentuk seragam untuk render (API membawa fileUrl,
+  // mock tidak; fileSize API bisa null).
+  const attachmentsToShow: {
+    id: string;
+    fileName: string;
+    fileSize: number | null;
+    fileUrl: string | null;
+  }[] = isApiTask
+    ? apiAttachments.map((a) => ({
+        id: a.id,
+        fileName: a.fileName,
+        fileSize: a.fileSize,
+        fileUrl: a.fileUrl,
+      }))
+    : attachmentList
+        .filter((a) => a.taskId === task.id)
+        .map((a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+          fileUrl: null,
+        }));
 
-  const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  // Riwayat: bentuk seragam untuk render (API membawa user
+  // bersarang + createdAt ISO; mock memakai userId + string lokal).
+  const historyToShow: {
+    id: string;
+    userName: string;
+    actionLabel: string;
+    oldStatus: string | null;
+    newStatus: string | null;
+    description: string | null;
+    createdAt: string;
+  }[] = isApiTask
+    ? apiHistory.map((h) => ({
+        id: h.id,
+        userName: h.user?.name ?? '—',
+        actionLabel: HISTORY_ACTION_LABELS[h.action] ?? h.action,
+        oldStatus: h.oldStatus,
+        newStatus: h.newStatus,
+        description: h.description,
+        createdAt: formatDateTime(h.createdAt),
+      }))
+    : history
+        .filter((h) => h.taskId === task.id)
+        .map((h) => ({
+          id: h.id,
+          userName: userName(h.userId),
+          actionLabel: HISTORY_ACTION_LABELS[h.action] ?? h.action,
+          oldStatus: h.oldStatus,
+          newStatus: h.newStatus,
+          description: h.description,
+          createdAt: h.createdAt,
+        }));
+
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setAttachmentList((prev) => [
-      ...prev,
-      ...files.map((f, i) => ({
-        id: `att_${Date.now()}_${i}`,
-        taskId: task.id,
-        fileName: f.name,
-        fileType: f.type || 'unknown',
-        fileSize: f.size,
-        uploadedBy: CURRENT_USER_ID,
-      })),
-    ]);
     e.target.value = '';
+    if (files.length === 0) return;
+    // Task mock: perilaku lokal lama (tanpa server).
+    if (!isApiTask) {
+      setAttachmentList((prev) => [
+        ...prev,
+        ...files.map((f, i) => ({
+          id: `att_${Date.now()}_${i}`,
+          taskId: task.id,
+          fileName: f.name,
+          fileType: f.type || 'unknown',
+          fileSize: f.size,
+          uploadedBy: CURRENT_USER_ID,
+        })),
+      ]);
+      return;
+    }
+    // Validasi client (cermin server): ukuran + tipe file.
+    const tooLarge = files.find((f) => f.size > MAX_FILE_SIZE);
+    if (tooLarge) {
+      setUploadError(
+        `File "${tooLarge.name}" terlalu besar (maksimal 10 MB).`,
+      );
+      return;
+    }
+    const unsupported = files.find(
+      (f) => f.type && !ALLOWED_MIME_TYPES.has(f.type),
+    );
+    if (unsupported) {
+      setUploadError(
+        `Tipe file "${unsupported.name}" tidak didukung. Format yang diizinkan: gambar, PDF, dokumen, spreadsheet, teks, atau ZIP.`,
+      );
+      return;
+    }
+    if (uploadBusy) return;
+    setUploadBusy(true);
+    setUploadError(null);
+    try {
+      for (const file of files) {
+        await api.uploadAttachment(task.id, file);
+      }
+      setNotice(
+        files.length === 1
+          ? 'Lampiran diupload.'
+          : `${files.length} lampiran diupload.`,
+      );
+      // Muat ulang daftar lampiran + riwayat (ATTACHMENT_ADDED).
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+      void fetchHistory(task.id);
+    } catch (err) {
+      setUploadError(pesanErrorApi(err));
+      // Sebagian file mungkin sempat terupload; muat ulang daftar.
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+    } finally {
+      setUploadBusy(false);
+    }
   };
 
-  const submitComment = (e: FormEvent) => {
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (deletingAttachmentId) return;
+    setDeletingAttachmentId(attachmentId);
+    setUploadError(null);
+    try {
+      await api.deleteAttachment(task.id, attachmentId);
+      setNotice('Lampiran dihapus.');
+      // Muat ulang daftar lampiran + riwayat (ATTACHMENT_DELETED).
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+      void fetchHistory(task.id);
+    } catch (err) {
+      setUploadError(pesanErrorApi(err));
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  const submitComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    onAddComment(comment.trim());
-    setComment('');
+    // Task mock: perilaku lokal lama (disimpan di App).
+    if (!isApiTask) {
+      onAddComment(comment.trim());
+      setComment('');
+      return;
+    }
+    if (commentBusy) return;
+    setCommentBusy(true);
+    setCommentError(null);
+    try {
+      const created = await api.createComment(task.id, comment.trim());
+      setApiComments((prev) => [...prev, created]);
+      setComment('');
+      setNotice('Komentar ditambahkan.');
+      // Riwayat ikut mencatat COMMENT_ADDED.
+      void fetchHistory(task.id);
+    } catch (err) {
+      setCommentError(pesanErrorApi(err));
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (deletingCommentId) return;
+    setDeletingCommentId(commentId);
+    setCommentError(null);
+    try {
+      await api.deleteComment(task.id, commentId);
+      setApiComments((prev) => prev.filter((c) => c.id !== commentId));
+      setNotice('Komentar dihapus.');
+      // Riwayat ikut mencatat COMMENT_DELETED.
+      void fetchHistory(task.id);
+    } catch (err) {
+      setCommentError(pesanErrorApi(err));
+    } finally {
+      setDeletingCommentId(null);
+    }
   };
 
   const changeStatus = async (status: TaskStatus) => {
@@ -279,6 +623,8 @@ export function TaskDetailPage({
     try {
       await onUpdateStatus(task.id, status);
       setNotice(`Status diubah ke ${STATUS_LABELS[status]}.`);
+      // Riwayat ikut mencatat STATUS_CHANGED (task API saja).
+      if (isApiTask) void fetchHistory(task.id);
     } catch (err) {
       setStatusError(pesanErrorApi(err));
     } finally {
@@ -329,6 +675,8 @@ export function TaskDetailPage({
     try {
       await onDelegateTask(task.id, input);
       setNotice('Task didelegasikan.');
+      // Riwayat ikut mencatat DELEGATED.
+      void fetchHistory(task.id);
     } catch (err) {
       setDelegateError(pesanErrorApi(err));
     } finally {
@@ -476,17 +824,54 @@ export function TaskDetailPage({
 
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Lampiran</h3>
-          <p className={sectionLabelClass}>Disimpan di Supabase Storage (mock)</p>
-          {taskAttachments.length === 0 && <p className={mutedClass}>Belum ada lampiran.</p>}
-          {taskAttachments.map((a) => (
+          {isApiTask ? (
+            <p className={sectionLabelClass}>
+              Maksimal 10 MB per file · gambar, PDF, dokumen, spreadsheet, teks, ZIP
+            </p>
+          ) : (
+            <p className={sectionLabelClass}>Disimpan di Supabase Storage (mock)</p>
+          )}
+          {attachmentsLoading && <p className={mutedClass}>Memuat lampiran...</p>}
+          {attachmentsError && <p role="alert">{attachmentsError}</p>}
+          {!attachmentsLoading && attachmentsToShow.length === 0 && (
+            <p className={mutedClass}>Belum ada lampiran.</p>
+          )}
+          {attachmentsToShow.map((a) => (
             <div key={a.id} className={`${rowClass} justify-between mb-2`}>
-              <span>{a.fileName}</span>
-              <span className={mutedClass}>{formatFileSize(a.fileSize)}</span>
+              {a.fileUrl ? (
+                <a href={a.fileUrl} target="_blank" rel="noreferrer">
+                  {a.fileName}
+                </a>
+              ) : (
+                <span>{a.fileName}</span>
+              )}
+              <span className={rowClass}>
+                <span className={mutedClass}>
+                  {a.fileSize === null ? '—' : formatFileSize(a.fileSize)}
+                </span>
+                {isApiTask && CAN_DELETE_ATTACHMENT.includes(role) && (
+                  <button
+                    type="button"
+                    className={btnClass}
+                    disabled={deletingAttachmentId === a.id}
+                    onClick={() => void handleDeleteAttachment(a.id)}
+                  >
+                    {deletingAttachmentId === a.id ? 'Menghapus...' : 'Hapus'}
+                  </button>
+                )}
+              </span>
             </div>
           ))}
+          {uploadError && <p role="alert">{uploadError}</p>}
           <label className={`${btnBlueClass} mt-2 cursor-pointer`}>
-            + Upload File
-            <input type="file" multiple hidden onChange={handleUpload} />
+            {uploadBusy ? 'Mengupload...' : '+ Upload File'}
+            <input
+              type="file"
+              multiple
+              hidden
+              disabled={uploadBusy}
+              onChange={(e) => void handleUpload(e)}
+            />
           </label>
 
         </div>
@@ -571,30 +956,68 @@ export function TaskDetailPage({
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Riwayat Tugas</h3>
           <p className={sectionLabelClass}>Timeline aktivitas</p>
+          {historyLoading && <p className={mutedClass}>Memuat riwayat...</p>}
+          {historyError && <p role="alert">{historyError}</p>}
           <div className="flex flex-col">
-            {taskHistory.map((h) => (
+            {historyToShow.map((h) => (
               <div className={timelineItemClass} key={h.id}>
                 <span className={timelineDateClass}>[{h.createdAt}]</span>
                 <span>
-                  <strong>{userName(h.userId)}</strong> — {h.action}
+                  <strong>{h.userName}</strong> — {h.actionLabel}
                   {h.oldStatus && h.newStatus ? ` (${STATUS_LABELS[h.oldStatus as TaskStatus]} → ${STATUS_LABELS[h.newStatus as TaskStatus]})` : ''}
                   {h.description ? ` — ${h.description}` : ''}
                 </span>
               </div>
             ))}
-            {taskHistory.length === 0 && <p className={mutedClass}>Belum ada riwayat.</p>}
+            {!historyLoading && historyToShow.length === 0 && (
+              <p className={mutedClass}>Belum ada riwayat.</p>
+            )}
           </div>
         </div>
 
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Komentar</h3>
-          <p className={sectionLabelClass}>{comments.length} komentar</p>
-          {comments.map((c, i) => (
-            <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2">{c}</p>
-          ))}
+          <p className={sectionLabelClass}>
+            {isApiTask ? apiComments.length : comments.length} komentar
+          </p>
+          {commentsLoading && <p className={mutedClass}>Memuat komentar...</p>}
+          {commentsError && <p role="alert">{commentsError}</p>}
+          {isApiTask
+            ? apiComments.map((c) => (
+                <div
+                  key={c.id}
+                  className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2 mb-2"
+                >
+                  <p className={mutedClass}>
+                    {c.user?.name ?? '—'} · {formatDateTime(c.created_at)}
+                  </p>
+                  <p>{c.content}</p>
+                  {(c.user?.id === currentUserId ||
+                    CAN_DELETE_TASK.includes(role)) && (
+                    <button
+                      type="button"
+                      className={btnClass}
+                      disabled={deletingCommentId === c.id}
+                      onClick={() => void handleDeleteComment(c.id)}
+                    >
+                      {deletingCommentId === c.id ? 'Menghapus...' : 'Hapus'}
+                    </button>
+                  )}
+                </div>
+              ))
+            : comments.map((c, i) => (
+                <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2">{c}</p>
+              ))}
+          {commentError && <p role="alert">{commentError}</p>}
           <form onSubmit={submitComment} className="flex flex-col gap-2 mt-3">
             <textarea className={inputClass} value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Tulis komentar..." />
-            <button type="submit" className={btnYellowClass}>Kirim Komentar</button>
+            <button
+              type="submit"
+              className={btnYellowClass}
+              disabled={commentBusy || !comment.trim()}
+            >
+              {commentBusy ? 'Mengirim...' : 'Kirim Komentar'}
+            </button>
           </form>
         </div>
       </div>
