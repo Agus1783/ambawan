@@ -208,6 +208,95 @@ export interface CreateTaskInput {
   division_id?: string;
 }
 
+// --- Divisi, anggota & undangan (spec v2 §8, §11, §12) ---
+
+/** Satu divisi dari daftar (GET /divisions): ketua + jumlah anggota. */
+export interface Division {
+  id: string;
+  workspace_id: string;
+  name: string;
+  leader: { id: string; name: string } | null;
+  memberCount: number;
+}
+
+/** Anggota divisi (GET /divisions/:id/members): ketua + assignee task. */
+export interface DivisionMember {
+  id: string;
+  name: string;
+  role: WorkspaceRole;
+}
+
+/** Detail divisi (GET /divisions/:id): divisi + anggota-anggotanya. */
+export interface DivisionDetail {
+  id: string;
+  workspace_id: string;
+  name: string;
+  leader: { id: string; name: string } | null;
+  members: DivisionMember[];
+}
+
+/** Anggota workspace (GET /workspaces/:id/members). */
+export interface WorkspaceMember {
+  id: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+}
+
+/** Role workspace lengkap (GET /workspaces/:id/roles): sistem + kustom. */
+export interface WorkspaceRoleDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+  permissions: string[];
+}
+
+/** Status undangan (spec v2 §11): PENDING/ACCEPTED/EXPIRED/DECLINED. */
+export type InvitationStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'EXPIRED'
+  | 'DECLINED';
+
+/** Satu undangan (GET /workspaces/:id/invitations). */
+export interface Invitation {
+  id: string;
+  workspace_id: string;
+  project_id: string | null;
+  email: string;
+  role: WorkspaceRole;
+  status: InvitationStatus;
+  invited_by: { id: string; name: string };
+  expires_at: string;
+}
+
+/** Hasil kirim undangan (POST /workspaces/:id/invitations): tanpa invited_by. */
+export interface CreatedInvitation {
+  id: string;
+  workspace_id: string;
+  project_id: string | null;
+  email: string;
+  role: WorkspaceRole;
+  status: InvitationStatus;
+  expires_at: string;
+}
+
+/** Hasil kirim ulang (POST /invitations/:id/resend): baris baru. */
+export interface ResentInvitation {
+  id: string;
+  email: string;
+  status: InvitationStatus;
+  expires_at: string;
+}
+
+/** Body kirim undangan (POST /workspaces/:id/invitations, spec v2 §11.1). */
+export interface CreateInvitationInput {
+  email: string;
+  role_id: string;
+  project_id?: string;
+}
+
 /**
  * Petakan item task API ke tipe `Task` lokal (dipakai halaman lain).
  * Daftar tidak membawa deskripsi/parent, jadi keduanya kosong di sini.
@@ -304,11 +393,26 @@ export function pesanErrorApi(error: unknown): string {
     if (error.code === 'DIVISION_NOT_FOUND') {
       return 'Divisi tidak ditemukan di workspace ini.';
     }
+    if (error.code === 'ROLE_NOT_FOUND') {
+      return 'Role tidak ditemukan.';
+    }
+    if (error.code === 'ROLE_NOT_IN_WORKSPACE') {
+      return 'Role bukan milik workspace ini.';
+    }
+    if (error.code === 'INVITATION_INVALID') {
+      return 'Undangan tidak ditemukan.';
+    }
+    if (error.code === 'INVITATION_EXPIRED') {
+      return 'Undangan sudah kedaluwarsa.';
+    }
     if (error.code === 'FORBIDDEN') {
       return 'Kamu tidak punya izin untuk aksi ini.';
     }
     if (error.code === 'RESOURCE_CONFLICT') {
-      return 'Nama itu sudah digunakan.';
+      // Pesan server sudah spesifik dan berbahasa Indonesia
+      // ('Nama division sudah dipakai...', 'Email sudah menjadi
+      // anggota...'); pakai itu bila ada, kalau tidak pesan umum.
+      return error.message || 'Nama itu sudah digunakan.';
     }
     if (error.code === 'VALIDATION_ERROR') {
       return 'Periksa lagi isian form.';
@@ -591,6 +695,122 @@ async function listSubtasks(id: string): Promise<ApiSubtask[]> {
   return get<ApiSubtask[]>(`/tasks/${id}/subtasks`);
 }
 
+// --- Divisi (spec v2 §12) ---
+
+async function listDivisions(workspaceId: string): Promise<Division[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({
+    workspace_id: workspaceId,
+    limit: '100',
+  });
+  return get<Division[]>(`/divisions?${query.toString()}`);
+}
+
+async function createDivision(input: {
+  workspace_id: string;
+  name: string;
+}): Promise<Division> {
+  // Respons create tidak membawa `memberCount`; pemanggil memuat
+  // ulang daftar divisi setelah berhasil.
+  const created = await post<{
+    id: string;
+    workspace_id: string;
+    name: string;
+    leader: { id: string; name: string } | null;
+  }>('/divisions', input);
+  return { ...created, memberCount: 0 };
+}
+
+async function getDivision(id: string): Promise<DivisionDetail> {
+  return get<DivisionDetail>(`/divisions/${id}`);
+}
+
+async function listDivisionMembers(id: string): Promise<DivisionMember[]> {
+  return get<DivisionMember[]>(`/divisions/${id}/members`);
+}
+
+async function setDivisionLeader(
+  id: string,
+  userId: string,
+): Promise<{ division_id: string; leader: { id: string; name: string } }> {
+  return request<{ division_id: string; leader: { id: string; name: string } }>(
+    `/divisions/${id}/leader`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: userId }),
+    },
+  );
+}
+
+// --- Anggota workspace (spec v2 §8) ---
+
+async function listWorkspaceMembers(
+  workspaceId: string,
+): Promise<WorkspaceMember[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({ limit: '100' });
+  return get<WorkspaceMember[]>(
+    `/workspaces/${workspaceId}/members?${query.toString()}`,
+  );
+}
+
+async function updateMemberRole(
+  workspaceId: string,
+  userId: string,
+  roleId: string,
+): Promise<WorkspaceMember> {
+  return request<WorkspaceMember>(
+    `/workspaces/${workspaceId}/members/${userId}/role`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ role_id: roleId }),
+    },
+  );
+}
+
+async function removeMember(
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  await request<void>(`/workspaces/${workspaceId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+async function listWorkspaceRoles(
+  workspaceId: string,
+): Promise<WorkspaceRoleDetail[]> {
+  return get<WorkspaceRoleDetail[]>(`/workspaces/${workspaceId}/roles`);
+}
+
+// --- Undangan (spec v2 §11) ---
+
+async function listInvitations(
+  workspaceId: string,
+): Promise<Invitation[]> {
+  // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  const query = new URLSearchParams({ limit: '100' });
+  return get<Invitation[]>(
+    `/workspaces/${workspaceId}/invitations?${query.toString()}`,
+  );
+}
+
+async function createInvitation(
+  workspaceId: string,
+  input: CreateInvitationInput,
+): Promise<CreatedInvitation> {
+  return post<CreatedInvitation>(
+    `/workspaces/${workspaceId}/invitations`,
+    input,
+  );
+}
+
+async function resendInvitation(id: string): Promise<ResentInvitation> {
+  // Kirim ulang = baris baru (token + expires_at baru), baris lama
+  // ditandai EXPIRED (spec §11.5); pemanggil memuat ulang daftar.
+  return post<ResentInvitation>(`/invitations/${id}/resend`, {});
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -622,6 +842,18 @@ const api = {
   deleteTask,
   delegateTask,
   listSubtasks,
+  listDivisions,
+  createDivision,
+  getDivision,
+  listDivisionMembers,
+  setDivisionLeader,
+  listWorkspaceMembers,
+  updateMemberRole,
+  removeMember,
+  listWorkspaceRoles,
+  listInvitations,
+  createInvitation,
+  resendInvitation,
 };
 
 export default api;

@@ -2,15 +2,18 @@
 // Field dan validasi sama seperti sebelum dipecah: judul, project,
 // dan deadline wajib diisi.
 //
-// Catatan: pilihan divisi dan penanggung jawab masih dari mockData
-// (divisi + anggota dari API baru di langkah 6/8). Backend menolak
-// id yang tidak ada di workspace, jadi untuk sekarang biarkan
-// "Tanpa divisi" / "Belum ditentukan" bila ragu.
+// Pilihan divisi dan penanggung jawab dari API (Tahap 2 langkah 6):
+// TasksPage memuatnya untuk workspace aktif dan menurunkannya
+// sebagai props, jadi id yang dipilih selalu ada di workspace dan
+// tidak lagi ditolak backend.
 import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { Priority } from '../../interfaces/types';
-import type { Project } from '../../utils/api';
-import { divisions, users } from '../../data/mockData';
+import type {
+  Division,
+  Project,
+  WorkspaceMember,
+} from '../../utils/api';
 import { Modal } from '../ui/Modal';
 import {
   btnClass,
@@ -33,6 +36,8 @@ export interface TaskFormValues {
 
 export function TaskFormModal({
   projects,
+  divisions,
+  members,
   initialProjectId,
   submitting,
   error,
@@ -40,6 +45,8 @@ export function TaskFormModal({
   onSubmit,
 }: {
   projects: Project[];
+  divisions: Division[];
+  members: WorkspaceMember[];
   initialProjectId: string;
   submitting: boolean;
   error: string | null;
@@ -138,7 +145,7 @@ export function TaskFormModal({
             }
           >
             <option value="">Belum ditentukan</option>
-            {users.map((u) => (
+            {members.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
               </option>

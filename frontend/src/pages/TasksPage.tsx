@@ -9,17 +9,20 @@
 //   TaskTable, TaskPagination, dan hook useTaskFilter di
 //   src/components/tasks/.
 //
-// Batasan: pilihan divisi + penanggung jawab di form masih mock
-// (langkah 6/8); nama project + penanggung jawab di tabel masih dari
+// Batasan: nama project + penanggung jawab di tabel masih dari
 // mockData sampai daftar project/anggota dari API dipakai di sini.
+// Pilihan divisi + penanggung jawab di form dan filter divisi
+// sudah dari API (Tahap 2 langkah 6).
 import { useEffect, useState } from 'react';
 import type { RoleName, Task } from '../interfaces/types';
 import api, {
   pesanErrorApi,
   taskFromApiTask,
   type CreateTaskInput,
+  type Division,
   type Project,
   type Workspace,
+  type WorkspaceMember,
 } from '../utils/api';
 import { TaskFormModal, type TaskFormValues } from '../components/tasks/TaskFormModal';
 import { TaskFilters } from '../components/tasks/TaskFilters';
@@ -48,6 +51,11 @@ export function TasksPage({
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  // Divisi + anggota workspace aktif (Tahap 2 langkah 6): dipakai
+  // pilihan divisi/penanggung jawab di form buat task dan pilihan
+  // divisi di filter — id dari sini selalu ada di workspace.
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
   // Workspace yang datanya sudah dimuat; loading diturunkan dari sini
   // (pola ProjectsPage) supaya effect tidak memanggil setState sinkron.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -64,11 +72,15 @@ export function TasksPage({
     return Promise.all([
       api.listTasks(workspaceId),
       api.listProjects(workspaceId),
+      api.listDivisions(workspaceId),
+      api.listWorkspaceMembers(workspaceId),
     ])
-      .then(([apiTasks, apiProjects]) => {
+      .then(([apiTasks, apiProjects, apiDivisions, apiMembers]) => {
         if (isCancelled?.()) return;
         setTasks(apiTasks.map(taskFromApiTask));
         setProjects(apiProjects);
+        setDivisions(apiDivisions);
+        setMembers(apiMembers);
         setError(null);
       })
       .catch((err: unknown) => {
@@ -76,6 +88,8 @@ export function TasksPage({
         setError(pesanErrorApi(err));
         setTasks([]);
         setProjects([]);
+        setDivisions([]);
+        setMembers([]);
       })
       .finally(() => {
         if (!isCancelled?.()) setLoadedFor(workspaceId);
@@ -154,6 +168,8 @@ export function TasksPage({
       {showForm && (
         <TaskFormModal
           projects={projects}
+          divisions={divisions}
+          members={members}
           initialProjectId={projects[0]?.id ?? ''}
           submitting={formSubmitting}
           error={formError}
@@ -193,6 +209,7 @@ export function TasksPage({
             statusFilter={filter.statusFilter}
             priorityFilter={filter.priorityFilter}
             divisionFilter={filter.divisionFilter}
+            divisions={divisions}
             onQueryChange={(value) => {
               filter.setQuery(value);
               filter.resetPage();

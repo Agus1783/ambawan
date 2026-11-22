@@ -836,3 +836,319 @@ describe('api tugas (2) — status, subtask, delegasi, hapus (langkah 5)', () =>
     );
   });
 });
+
+describe('api divisi, anggota & undangan (langkah 6)', () => {
+  const division = {
+    id: 'div_it',
+    workspace_id: 'ws_01',
+    name: 'IT',
+    leader: { id: 'usr_01', name: 'Budi Santoso' },
+    memberCount: 2,
+  };
+
+  const member = {
+    id: 'usr_02',
+    name: 'Andi Pratama',
+    email: 'andi@ambado.id',
+    role: { id: 'rol_member', name: 'MEMBER', is_system: true },
+  };
+
+  const invitation = {
+    id: 'inv_01',
+    workspace_id: 'ws_01',
+    project_id: null,
+    email: 'sinta@ambado.id',
+    role: { id: 'rol_member', name: 'MEMBER', is_system: true },
+    status: 'PENDING',
+    invited_by: { id: 'usr_01', name: 'Budi Santoso' },
+    expires_at: '2026-11-29T00:00:00.000Z',
+  };
+
+  it('listDivisions GET /divisions?workspace_id=...&limit=100', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data division berhasil diambil',
+      data: [division],
+    });
+
+    const result = await api.listDivisions('ws_01');
+
+    expect(result).toEqual([division]);
+    expect(result[0]?.memberCount).toBe(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/divisions?workspace_id=ws_01&limit=100',
+      expect.anything(),
+    );
+  });
+
+  it('createDivision POST /divisions mengembalikan divisi (memberCount 0)', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Division berhasil dibuat',
+      data: {
+        id: 'div_it',
+        workspace_id: 'ws_01',
+        name: 'IT',
+        leader: null,
+      },
+    });
+
+    const result = await api.createDivision({
+      workspace_id: 'ws_01',
+      name: 'IT',
+    });
+
+    expect(result.name).toBe('IT');
+    expect(result.leader).toBeNull();
+    expect(result.memberCount).toBe(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/divisions',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ workspace_id: 'ws_01', name: 'IT' }),
+      }),
+    );
+  });
+
+  it('getDivision GET /divisions/:id mengembalikan detail + anggota', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data division berhasil diambil',
+      data: {
+        ...division,
+        members: [
+          {
+            id: 'usr_01',
+            name: 'Budi Santoso',
+            role: { id: 'rol_leader', name: 'DIVISION_LEADER', is_system: true },
+          },
+        ],
+      },
+    });
+
+    const result = await api.getDivision('div_it');
+
+    expect(result.members).toHaveLength(1);
+    expect(result.members[0]?.role.name).toBe('DIVISION_LEADER');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/divisions/div_it',
+      expect.anything(),
+    );
+  });
+
+  it('setDivisionLeader PUT /divisions/:id/leader mengirim user_id', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Ketua division berhasil ditetapkan',
+      data: {
+        division_id: 'div_it',
+        leader: { id: 'usr_01', name: 'Budi Santoso' },
+      },
+    });
+
+    const result = await api.setDivisionLeader('div_it', 'usr_01');
+
+    expect(result.leader.name).toBe('Budi Santoso');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/divisions/div_it/leader',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ user_id: 'usr_01' }),
+      }),
+    );
+  });
+
+  it('listWorkspaceMembers GET /workspaces/:id/members?limit=100', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Anggota workspace berhasil diambil',
+      data: [member],
+    });
+
+    const result = await api.listWorkspaceMembers('ws_01');
+
+    expect(result).toEqual([member]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/members?limit=100',
+      expect.anything(),
+    );
+  });
+
+  it('updateMemberRole PUT /workspaces/:id/members/:userId/role mengirim role_id', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Role anggota berhasil diperbarui',
+      data: {
+        ...member,
+        role: { id: 'rol_manager', name: 'MANAGER', is_system: true },
+      },
+    });
+
+    const result = await api.updateMemberRole(
+      'ws_01',
+      'usr_02',
+      'rol_manager',
+    );
+
+    expect(result.role.name).toBe('MANAGER');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/members/usr_02/role',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ role_id: 'rol_manager' }),
+      }),
+    );
+  });
+
+  it('removeMember DELETE /workspaces/:id/members/:userId berhasil pada 204', async () => {
+    const fetchMock = mockFetch(204, null);
+
+    await expect(api.removeMember('ws_01', 'usr_02')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/members/usr_02',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('listWorkspaceRoles GET /workspaces/:id/roles', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data role berhasil diambil',
+      data: [
+        {
+          id: 'rol_owner',
+          name: 'OWNER',
+          description: 'Pemilik workspace',
+          is_system: true,
+          permissions: ['workspace.view'],
+        },
+      ],
+    });
+
+    const result = await api.listWorkspaceRoles('ws_01');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.is_system).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/roles',
+      expect.anything(),
+    );
+  });
+
+  it('listInvitations GET /workspaces/:id/invitations?limit=100', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data undangan berhasil diambil',
+      data: [invitation],
+    });
+
+    const result = await api.listInvitations('ws_01');
+
+    expect(result).toEqual([invitation]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/invitations?limit=100',
+      expect.anything(),
+    );
+  });
+
+  it('createInvitation POST /workspaces/:id/invitations mengirim email + role_id', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Undangan berhasil dikirim',
+      data: {
+        id: 'inv_01',
+        workspace_id: 'ws_01',
+        project_id: null,
+        email: 'sinta@ambado.id',
+        role: { id: 'rol_member', name: 'MEMBER', is_system: true },
+        status: 'PENDING',
+        expires_at: '2026-11-29T00:00:00.000Z',
+      },
+    });
+
+    const result = await api.createInvitation('ws_01', {
+      email: 'sinta@ambado.id',
+      role_id: 'rol_member',
+    });
+
+    expect(result.status).toBe('PENDING');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/workspaces/ws_01/invitations',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'sinta@ambado.id',
+          role_id: 'rol_member',
+        }),
+      }),
+    );
+  });
+
+  it('resendInvitation POST /invitations/:id/resend mengembalikan baris baru', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Undangan berhasil dikirim ulang',
+      data: {
+        id: 'inv_02',
+        email: 'sinta@ambado.id',
+        status: 'PENDING',
+        expires_at: '2026-11-29T00:00:00.000Z',
+      },
+    });
+
+    const result = await api.resendInvitation('inv_01');
+
+    expect(result.id).toBe('inv_02');
+    expect(result.status).toBe('PENDING');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/invitations/inv_01/resend',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('pesanErrorApi kode baru divisi/anggota/undangan', () => {
+    expect(
+      pesanErrorApi(new ApiError('Role tidak ditemukan', 404, 'ROLE_NOT_FOUND')),
+    ).toBe('Role tidak ditemukan.');
+    expect(
+      pesanErrorApi(
+        new ApiError(
+          'Role kustom bukan milik workspace ini',
+          403,
+          'ROLE_NOT_IN_WORKSPACE',
+        ),
+      ),
+    ).toBe('Role bukan milik workspace ini.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Undangan tidak ditemukan', 404, 'INVITATION_INVALID'),
+      ),
+    ).toBe('Undangan tidak ditemukan.');
+    expect(
+      pesanErrorApi(
+        new ApiError('Undangan sudah kedaluwarsa', 400, 'INVITATION_EXPIRED'),
+      ),
+    ).toBe('Undangan sudah kedaluwarsa.');
+  });
+
+  it('pesanErrorApi RESOURCE_CONFLICT memakai pesan spesifik server', () => {
+    expect(
+      pesanErrorApi(
+        new ApiError(
+          'Email sudah menjadi anggota workspace ini',
+          409,
+          'RESOURCE_CONFLICT',
+        ),
+      ),
+    ).toBe('Email sudah menjadi anggota workspace ini');
+    expect(
+      pesanErrorApi(
+        new ApiError(
+          'Nama division sudah dipakai di workspace ini',
+          409,
+          'RESOURCE_CONFLICT',
+        ),
+      ),
+    ).toBe('Nama division sudah dipakai di workspace ini');
+  });
+});

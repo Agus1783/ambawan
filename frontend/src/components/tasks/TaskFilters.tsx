@@ -1,8 +1,13 @@
 // Kartu filter daftar task (Tahap 2 langkah 4: pecahan TasksPage).
 // Tampilan dan perilaku sama seperti sebelum dipecah.
+//
+// Pilihan divisi dari API (Tahap 2 langkah 6): TasksPage memuatnya
+// untuk workspace aktif — sebelumnya dari mockData, sehingga
+// filternya tidak pernah cocok dengan id divisi task dari API.
 import type { ChangeEvent } from 'react';
 import type { Priority, TaskStatus } from '../../interfaces/types';
-import { STATUS_LABELS, divisions } from '../../data/mockData';
+import type { Division } from '../../utils/api';
+import { STATUS_LABELS } from '../../data/mockData';
 import {
   cardClass,
   fieldClass,
@@ -16,6 +21,7 @@ export function TaskFilters({
   statusFilter,
   priorityFilter,
   divisionFilter,
+  divisions,
   onQueryChange,
   onStatusChange,
   onPriorityChange,
@@ -25,6 +31,7 @@ export function TaskFilters({
   statusFilter: TaskStatus | 'ALL';
   priorityFilter: Priority | 'ALL';
   divisionFilter: string;
+  divisions: Division[];
   onQueryChange: (value: string) => void;
   onStatusChange: (value: TaskStatus | 'ALL') => void;
   onPriorityChange: (value: Priority | 'ALL') => void;

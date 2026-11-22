@@ -361,7 +361,13 @@ function App() {
             {page === "delegation" && (
               <DelegationPage tasks={taskList} onDelegate={delegateTask} />
             )}
-            {page === "organization" && <OrganizationPage />}
+            {page === "organization" && (
+              <OrganizationPage
+                activeWorkspace={activeWorkspace}
+                role={role}
+                currentUserId={user.id}
+              />
+            )}
             {page === "myTasks" && (
               <MyTasksPage
                 tasks={taskList}

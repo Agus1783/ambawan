@@ -14,10 +14,9 @@
 //   backend) tetap memakai perilaku lokal lama: status diubah lokal,
 //   subtask dari taskList, tanpa tombol delegasi/hapus API.
 //
-// Batasan: pilihan user/divisi di form delegasi masih dari mockData
-// (anggota + divisi dari API baru di langkah 6). Backend menolak id
-// yang bukan anggota workspace, jadi delegasi ke nama mock akan
-// gagal dengan pesan yang ditampilkan di halaman ini.
+// Batasan: pilihan user/divisi di form delegasi dari API
+// (Tahap 2 langkah 6) — dimuat untuk workspace aktif saat halaman
+// dibuka, jadi id yang dipilih selalu anggota workspace.
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { RoleName, Task, TaskStatus } from '../interfaces/types';
@@ -26,15 +25,15 @@ import {
   STATUS_LABELS,
   CURRENT_USER_ID,
   attachments,
-  divisions,
   history,
-  users,
 } from '../data/mockData';
 import { divisionName, formatFileSize, projectName, userName } from '../utils/helpers';
 import api, {
   pesanErrorApi,
   type ApiSubtask,
   type DelegateTaskInput,
+  type Division,
+  type WorkspaceMember,
 } from '../utils/api';
 import { Chip, StatusChip } from '../components/ui/Chip';
 import { Modal } from '../components/ui/Modal';
@@ -116,14 +115,27 @@ export function TaskDetailPage({
   const [subtaskBusy, setSubtaskBusy] = useState(false);
   const [subtaskError, setSubtaskError] = useState<string | null>(null);
 
-  // Delegasi (task API saja).
+  // Delegasi (task API saja): pilihan user/divisi dari API.
   const [delegateKind, setDelegateKind] = useState<'user' | 'division'>(
     'user',
   );
-  const [delegateUserId, setDelegateUserId] = useState(users[1]?.id ?? '');
-  const [delegateDivisionId, setDelegateDivisionId] = useState(
-    divisions[0]?.id ?? '',
+  const [delegateUserId, setDelegateUserId] = useState('');
+  const [delegateDivisionId, setDelegateDivisionId] = useState('');
+  const [delegateDivisions, setDelegateDivisions] = useState<Division[]>([]);
+  const [delegateMembers, setDelegateMembers] = useState<WorkspaceMember[]>(
+    [],
   );
+  // Task yang pilihan delegasinya sudah dimuat; loading diturunkan
+  // dari sini (pola subtask di atas) supaya effect tidak memanggil
+  // setState sinkron.
+  const [delegateLoadedFor, setDelegateLoadedFor] = useState<string | null>(
+    null,
+  );
+  const delegateOptionsLoading =
+    isApiTask && delegateLoadedFor !== task.id;
+  const [delegateOptionsError, setDelegateOptionsError] = useState<
+    string | null
+  >(null);
   const [delegateBusy, setDelegateBusy] = useState(false);
   const [delegateError, setDelegateError] = useState<string | null>(null);
 
@@ -160,6 +172,63 @@ export function TaskDetailPage({
       cancelled = true;
     };
   }, [task.id, isApiTask]);
+
+  const fetchDelegateOptions = (
+    taskId: string,
+    wsId: string,
+    isCancelled?: () => boolean,
+  ) => {
+    return Promise.all([
+      api.listDivisions(wsId),
+      api.listWorkspaceMembers(wsId),
+    ])
+      .then(([apiDivisions, apiMembers]) => {
+        if (isCancelled?.()) return;
+        setDelegateDivisions(apiDivisions);
+        setDelegateMembers(apiMembers);
+        setDelegateOptionsError(null);
+        // Pilihan awal: anggota/divisi pertama dari API.
+        setDelegateUserId((prev) => prev || apiMembers[0]?.id || '');
+        setDelegateDivisionId(
+          (prev) => prev || apiDivisions[0]?.id || '',
+        );
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setDelegateOptionsError(pesanErrorApi(err));
+        setDelegateDivisions([]);
+        setDelegateMembers([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setDelegateLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask || !workspaceId) {
+      return;
+    }
+    let cancelled = false;
+    void fetchDelegateOptions(task.id, workspaceId, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask, workspaceId]);
+
+  // Nama divisi/penanggung jawab: task API memakai daftar dari API
+  // (id mock tidak cocok); task mock tetap memakai helper mock.
+  const shownDivisionName = isApiTask
+    ? task.divisionId
+      ? (delegateDivisions.find((d) => d.id === task.divisionId)?.name ??
+        (delegateOptionsLoading ? 'Memuat...' : task.divisionId))
+      : '—'
+    : divisionName(task.divisionId);
+  const shownAssigneeName = isApiTask
+    ? task.assigneeId
+      ? (delegateMembers.find((m) => m.id === task.assigneeId)?.name ??
+        (delegateOptionsLoading ? 'Memuat...' : task.assigneeId))
+      : 'Belum ditentukan'
+    : userName(task.assigneeId);
 
   const subtasksToShow: { id: string; title: string; status: TaskStatus; assigneeName: string }[] =
     isApiTask
@@ -317,8 +386,8 @@ export function TaskDetailPage({
         </div>
         <p>{task.description}</p>
         <p className={mutedClass}>
-          Project: {projectName(task.projectId)} · Divisi: {divisionName(task.divisionId)} ·
-          Penanggung jawab: {userName(task.assigneeId)} · Deadline: {task.deadline || '—'}
+          Project: {projectName(task.projectId)} · Divisi: {shownDivisionName} ·
+          Penanggung jawab: {shownAssigneeName} · Deadline: {task.deadline || '—'}
         </p>
         <div className={rowClass}>
           <span className={fieldLabelClass}>Ubah Status:</span>
@@ -427,10 +496,12 @@ export function TaskDetailPage({
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Delegasikan Tugas</h3>
           <p className={sectionLabelClass}>
-            Delegasi ke satu user atau satu divisi — pilihan user/divisi
-            masih dari mock sampai langkah 6, jadi delegasi ke nama mock
-            akan ditolak server.
+            Delegasi ke satu user atau satu divisi dari workspace aktif.
           </p>
+          {delegateOptionsLoading && (
+            <p className={mutedClass}>Memuat pilihan delegasi...</p>
+          )}
+          {delegateOptionsError && <p role="alert">{delegateOptionsError}</p>}
           <form onSubmit={submitDelegate} className={rowClass}>
             <label className={fieldClass}>
               <span className={fieldLabelClass}>Delegasikan Ke</span>
@@ -455,7 +526,7 @@ export function TaskDetailPage({
                     setDelegateUserId(e.target.value)
                   }
                 >
-                  {users.map((u) => (
+                  {delegateMembers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name}
                     </option>
@@ -472,7 +543,7 @@ export function TaskDetailPage({
                     setDelegateDivisionId(e.target.value)
                   }
                 >
-                  {divisions.map((d) => (
+                  {delegateDivisions.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
                     </option>
@@ -483,7 +554,11 @@ export function TaskDetailPage({
             <button
               type="submit"
               className={`${btnYellowClass} self-end`}
-              disabled={delegateBusy}
+              disabled={
+                delegateBusy ||
+                (delegateKind === 'user' && !delegateUserId) ||
+                (delegateKind === 'division' && !delegateDivisionId)
+              }
             >
               {delegateBusy ? 'Mendelegasikan...' : 'Delegasikan'}
             </button>
