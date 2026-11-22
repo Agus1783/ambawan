@@ -1,4 +1,6 @@
-// Tabel daftar task (Tahap 2 langkah 4: pecahan TasksPage).
+// Tabel daftar task (Tahap 2 langkah 4: pecahan TasksPage; langkah 5:
+// perbaiki bug dark-mode — kartu kini memakai dark:bg + dark:shadow
+// seperti cardClass, bukan lagi bg-white polos).
 // Tampilan dan perilaku sama seperti sebelum dipecah, kecuali task
 // tanpa deadline menampilkan '—' (daftar API boleh membawa null).
 import type { Task } from '../../interfaces/types';
@@ -19,7 +21,7 @@ export function TaskTable({
   onSelectTask: (id: string) => void;
 }) {
   return (
-    <div className={`${cardBaseClass} bg-white shadow-brutal p-0 overflow-hidden`}>
+    <div className={`${cardBaseClass} bg-white dark:bg-[#262626] shadow-brutal dark:shadow-brutal-light p-0 overflow-hidden`}>
       <table className="w-full border-collapse">
         <thead>
           <tr>

@@ -13,6 +13,7 @@ import { TasksPage } from "./pages/TasksPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import api, {
   taskFromApiTaskDetail,
+  type DelegateTaskInput,
   type PublicUser,
   type Workspace,
 } from "./utils/api";
@@ -182,6 +183,13 @@ function App() {
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
   // Daftar task mock masih dipakai Dashboard/MyTasks/Delegation sampai
   // langkah berikutnya; TasksPage sudah memuat task sendiri dari API.
+  // ID task yang sudah terkonfirmasi ada di backend (detail berhasil
+  // diambil dari API): hanya untuk task inilah aksi langkah 5
+  // (status/hapus/delegasi) memanggil API; task mock tetap diubah
+  // lokal seperti sebelumnya.
+  const [apiTaskIds, setApiTaskIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, string[]>>({
     tsk_01: ["Progress sudah 70%, API login hampir selesai."],
@@ -200,6 +208,7 @@ function App() {
       .getTask(id)
       .then((detail) => {
         const mapped = taskFromApiTaskDetail(detail);
+        setApiTaskIds((prev) => new Set(prev).add(id));
         setTaskList((prev) =>
           prev.some((t) => t.id === id)
             ? prev.map((t) => (t.id === id ? mapped : t))
@@ -211,9 +220,49 @@ function App() {
       });
   };
 
-  const updateTaskStatus = (id: string, status: TaskStatus) => {
+  // Ubah status (Tahap 2 langkah 5): task API lewat
+  // PUT /tasks/:id/status; task mock diubah lokal seperti sebelumnya.
+  // Gagal dari server dilempar supaya halaman detail menampilkannya.
+  const updateTaskStatus = async (id: string, status: TaskStatus) => {
+    if (apiTaskIds.has(id)) {
+      await api.updateTaskStatus(id, status);
+    }
     setTaskList((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status } : t)),
+    );
+  };
+
+  // Hapus task API (DELETE /tasks/:id): setelah 204, keluarkan dari
+  // daftar lokal dan kembali ke halaman Tasks.
+  const deleteTaskApi = async (id: string): Promise<void> => {
+    await api.deleteTask(id);
+    setTaskList((prev) => prev.filter((t) => t.id !== id));
+    setApiTaskIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setSelectedTaskId(null);
+    setPage("tasks");
+  };
+
+  // Delegasi task API (POST /tasks/:id/delegate): perbarui
+  // penanggung jawab/divisi lokal dari respons server.
+  const delegateTaskApi = async (
+    id: string,
+    input: DelegateTaskInput,
+  ): Promise<void> => {
+    const result = await api.delegateTask(id, input);
+    setTaskList((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              assigneeId: result.assignee?.id ?? null,
+              divisionId: result.division?.id ?? null,
+            }
+          : t,
+      ),
     );
   };
 
@@ -290,8 +339,13 @@ function App() {
               <TaskDetailPage
                 task={selectedTask}
                 tasks={taskList}
+                workspaceId={activeWorkspace?.id ?? null}
+                role={role}
+                isApiTask={apiTaskIds.has(selectedTask.id)}
                 onBack={() => navigate("tasks")}
                 onUpdateStatus={updateTaskStatus}
+                onDeleteTask={deleteTaskApi}
+                onDelegateTask={delegateTaskApi}
                 comments={comments[selectedTask.id] ?? []}
                 onAddComment={(text) =>
                   setComments((prev) => ({
@@ -309,7 +363,15 @@ function App() {
             )}
             {page === "organization" && <OrganizationPage />}
             {page === "myTasks" && (
-              <MyTasksPage tasks={taskList} onUpdateStatus={updateTaskStatus} />
+              <MyTasksPage
+                tasks={taskList}
+                // MyTasks masih memakai task mock (bukan dari API):
+                // kegagalan API di sini diabaikan, perubahan lokal
+                // untuk task mock tetap jalan lewat updateTaskStatus.
+                onUpdateStatus={(id, status) => {
+                  void updateTaskStatus(id, status).catch(() => undefined);
+                }}
+              />
             )}
             {page === "workspace" && (
               <WorkspacePage

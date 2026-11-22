@@ -168,6 +168,33 @@ export interface CreatedTask {
   priority: Priority;
 }
 
+/** Subtask (GET /tasks/:id/subtasks, spec v2 §14.8). */
+export interface ApiSubtask {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  assignee: { id: string; name: string } | null;
+}
+
+/** Hasil ubah status (PUT /tasks/:id/status, spec v2 §14.6). */
+export interface UpdatedTaskStatus {
+  id: string;
+  status: TaskStatus;
+}
+
+/** Hasil delegasi (POST /tasks/:id/delegate, spec v2 §14.7). */
+export interface DelegatedTask {
+  id: string;
+  division: { id: string; name: string } | null;
+  assignee: { id: string; name: string } | null;
+}
+
+/** Body delegasi: tepat satu dari assignee_id / division_id. */
+export interface DelegateTaskInput {
+  assignee_id?: string;
+  division_id?: string;
+}
+
 /** Body buat task (POST /tasks, spec v2 §14.2). */
 export interface CreateTaskInput {
   workspace_id: string;
@@ -264,6 +291,12 @@ export function pesanErrorApi(error: unknown): string {
     }
     if (error.code === 'TASK_NOT_FOUND') {
       return 'Task tidak ditemukan.';
+    }
+    if (error.code === 'INVALID_TASK_STATUS') {
+      return 'Status task tidak valid.';
+    }
+    if (error.code === 'INVALID_DELEGATION') {
+      return 'Delegasi harus ke satu user atau satu divisi yang merupakan anggota workspace ini.';
     }
     if (error.code === 'USER_NOT_FOUND') {
       return 'Pengguna tidak ditemukan di workspace ini.';
@@ -533,6 +566,31 @@ async function getTask(id: string): Promise<ApiTaskDetail> {
   return get<ApiTaskDetail>(`/tasks/${id}`);
 }
 
+async function updateTaskStatus(
+  id: string,
+  status: TaskStatus,
+): Promise<UpdatedTaskStatus> {
+  return request<UpdatedTaskStatus>(`/tasks/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+}
+
+async function deleteTask(id: string): Promise<void> {
+  await request<void>(`/tasks/${id}`, { method: 'DELETE' });
+}
+
+async function delegateTask(
+  id: string,
+  input: DelegateTaskInput,
+): Promise<DelegatedTask> {
+  return post<DelegatedTask>(`/tasks/${id}/delegate`, input);
+}
+
+async function listSubtasks(id: string): Promise<ApiSubtask[]> {
+  return get<ApiSubtask[]>(`/tasks/${id}/subtasks`);
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -560,6 +618,10 @@ const api = {
   listTasks,
   createTask,
   getTask,
+  updateTaskStatus,
+  deleteTask,
+  delegateTask,
+  listSubtasks,
 };
 
 export default api;

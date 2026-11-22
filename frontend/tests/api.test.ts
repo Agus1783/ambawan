@@ -674,3 +674,165 @@ describe('api tugas (langkah 4)', () => {
     ).toBe('Divisi tidak ditemukan di workspace ini.');
   });
 });
+
+describe('api tugas (2) — status, subtask, delegasi, hapus (langkah 5)', () => {
+  it('updateTaskStatus PUT /tasks/:id/status mengirim status dan mengembalikan id + status', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Status task berhasil diperbarui',
+      data: { id: 'tsk_01', status: 'IN_PROGRESS' },
+    });
+
+    const result = await api.updateTaskStatus('tsk_01', 'IN_PROGRESS');
+
+    expect(result).toEqual({ id: 'tsk_01', status: 'IN_PROGRESS' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/status',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ status: 'IN_PROGRESS' }),
+      }),
+    );
+  });
+
+  it('listSubtasks GET /tasks/:id/subtasks mengembalikan daftar subtask', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Subtask berhasil diambil',
+      data: [
+        {
+          id: 'tsk_02',
+          title: 'Membuat skema tabel user',
+          status: 'ASSIGNED',
+          assignee: { id: 'usr_02', name: 'Andi' },
+        },
+        {
+          id: 'tsk_03',
+          title: 'Menulis test login',
+          status: 'BACKLOG',
+          assignee: null,
+        },
+      ],
+    });
+
+    const result = await api.listSubtasks('tsk_01');
+
+    expect(result).toHaveLength(2);
+    expect(result[1]?.assignee).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/subtasks',
+      expect.anything(),
+    );
+  });
+
+  it('createTask dengan parent_task_id mengirim parent untuk membuat subtask', async () => {
+    const fetchMock = mockFetch(201, {
+      success: true,
+      message: 'Task berhasil dibuat',
+      data: {
+        id: 'tsk_02',
+        workspace_id: 'ws_01',
+        title: 'Membuat skema tabel user',
+        status: 'ASSIGNED',
+        priority: 'P3',
+      },
+    });
+
+    const result = await api.createTask({
+      workspace_id: 'ws_01',
+      project_id: 'prj_01',
+      parent_task_id: 'tsk_01',
+      title: 'Membuat skema tabel user',
+      priority: 'P3',
+    });
+
+    expect(result.id).toBe('tsk_02');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          workspace_id: 'ws_01',
+          project_id: 'prj_01',
+          parent_task_id: 'tsk_01',
+          title: 'Membuat skema tabel user',
+          priority: 'P3',
+        }),
+      }),
+    );
+  });
+
+  it('delegateTask POST /tasks/:id/delegate ke user mengembalikan assignee baru', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Task berhasil didelegasikan',
+      data: {
+        id: 'tsk_01',
+        division: null,
+        assignee: { id: 'usr_03', name: 'Citra' },
+      },
+    });
+
+    const result = await api.delegateTask('tsk_01', {
+      assignee_id: 'usr_03',
+    });
+
+    expect(result.assignee?.name).toBe('Citra');
+    expect(result.division).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01/delegate',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ assignee_id: 'usr_03' }),
+      }),
+    );
+  });
+
+  it('delegateTask POST /tasks/:id/delegate ke divisi mengembalikan division baru', async () => {
+    mockFetch(200, {
+      success: true,
+      message: 'Task berhasil didelegasikan',
+      data: {
+        id: 'tsk_01',
+        division: { id: 'div_it', name: 'IT' },
+        assignee: null,
+      },
+    });
+
+    const result = await api.delegateTask('tsk_01', {
+      division_id: 'div_it',
+    });
+
+    expect(result.division?.name).toBe('IT');
+    expect(result.assignee).toBeNull();
+  });
+
+  it('deleteTask DELETE /tasks/:id berhasil pada 204 tanpa body', async () => {
+    const fetchMock = mockFetch(204, null);
+
+    await expect(api.deleteTask('tsk_01')).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks/tsk_01',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('pesanErrorApi INVALID_TASK_STATUS dan INVALID_DELEGATION', () => {
+    expect(
+      pesanErrorApi(
+        new ApiError('Status task tidak valid', 400, 'INVALID_TASK_STATUS'),
+      ),
+    ).toBe('Status task tidak valid.');
+    expect(
+      pesanErrorApi(
+        new ApiError(
+          'Delegasi harus ke satu user atau satu division',
+          400,
+          'INVALID_DELEGATION',
+        ),
+      ),
+    ).toBe(
+      'Delegasi harus ke satu user atau satu divisi yang merupakan anggota workspace ini.',
+    );
+  });
+});
