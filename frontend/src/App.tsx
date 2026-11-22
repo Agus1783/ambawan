@@ -181,8 +181,10 @@ function App() {
   };
 
   const [taskList, setTaskList] = useState<Task[]>(seedTasks);
-  // Daftar task mock masih dipakai Dashboard/MyTasks/Delegation sampai
-  // langkah berikutnya; TasksPage sudah memuat task sendiri dari API.
+  // Daftar task mock masih dipakai TaskDetailPage sebagai fallback
+  // (task yang belum pernah dibuka dari API); TasksPage memuat task
+  // sendiri dari API, Dashboard/MyTasks/Delegation juga dari API
+  // sejak langkah 8.
   // ID task yang sudah terkonfirmasi ada di backend (detail berhasil
   // diambil dari API): hanya untuk task inilah aksi langkah 5
   // (status/hapus/delegasi) memanggil API; task mock tetap diubah
@@ -266,16 +268,6 @@ function App() {
     );
   };
 
-  const delegateTask = (taskId: string, assigneeId: string) => {
-    setTaskList((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, assigneeId, status: "ASSIGNED" as TaskStatus }
-          : t,
-      ),
-    );
-  };
-
   const selectedTask = taskList.find((t) => t.id === selectedTaskId) ?? null;
 
   return (
@@ -320,7 +312,9 @@ function App() {
               onLogout={handleLogout}
             />
 
-            {page === "dashboard" && <DashboardPage tasks={taskList} />}
+            {page === "dashboard" && (
+              <DashboardPage activeWorkspace={activeWorkspace} />
+            )}
             {page === "projects" && (
               <ProjectsPage
                 activeWorkspace={activeWorkspace}
@@ -360,7 +354,14 @@ function App() {
               <p className="text-mk-muted">Pilih task dulu dari Daftar Task.</p>
             )}
             {page === "delegation" && (
-              <DelegationPage tasks={taskList} onDelegate={delegateTask} />
+              <DelegationPage
+                activeWorkspace={activeWorkspace}
+                canDelegate={
+                  role === "OWNER" ||
+                  role === "MANAGER" ||
+                  role === "DIVISION_LEADER"
+                }
+              />
             )}
             {page === "organization" && (
               <OrganizationPage
@@ -371,13 +372,8 @@ function App() {
             )}
             {page === "myTasks" && (
               <MyTasksPage
-                tasks={taskList}
-                // MyTasks masih memakai task mock (bukan dari API):
-                // kegagalan API di sini diabaikan, perubahan lokal
-                // untuk task mock tetap jalan lewat updateTaskStatus.
-                onUpdateStatus={(id, status) => {
-                  void updateTaskStatus(id, status).catch(() => undefined);
-                }}
+                activeWorkspace={activeWorkspace}
+                currentUserId={user.id}
               />
             )}
             {page === "workspace" && (

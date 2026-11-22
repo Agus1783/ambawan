@@ -1370,3 +1370,146 @@ describe('api divisi, anggota & undangan (langkah 6)', () => {
     ).toBe('Ukuran file terlalu besar (maksimal 10 MB).');
   });
 });
+
+describe('api dashboard & users (langkah 8)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    api.onUnauthorized(null);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('getDashboardSummary GET /dashboard/summary?workspace_id=...', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Dashboard berhasil diambil',
+      data: {
+        workspace_id: 'ws_01',
+        totalTasks: 10,
+        completedTasks: 4,
+        inProgressTasks: 3,
+        reviewTasks: 1,
+        overdueTasks: 2,
+        completionRate: 40,
+      },
+    });
+
+    const result = await api.getDashboardSummary('ws_01');
+
+    expect(result.totalTasks).toBe(10);
+    expect(result.completionRate).toBe(40);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/dashboard/summary?workspace_id=ws_01',
+      expect.anything(),
+    );
+  });
+
+  it('getDashboardTaskStatistics GET /dashboard/tasks + filter project/divisi', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Statistik task berhasil diambil',
+      data: {
+        workspace_id: 'ws_01',
+        byStatus: { BACKLOG: 1, COMPLETED: 4 },
+        byPriority: { P1: 2, P2: 2, P3: 1 },
+      },
+    });
+
+    const result = await api.getDashboardTaskStatistics('ws_01', {
+      projectId: 'prj_01',
+      divisionId: 'div_it',
+    });
+
+    expect(result.byStatus.COMPLETED).toBe(4);
+    expect(result.byPriority.P1).toBe(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/dashboard/tasks?workspace_id=ws_01&project_id=prj_01&division_id=div_it',
+      expect.anything(),
+    );
+  });
+
+  it('getDashboardTaskStatistics tanpa filter hanya workspace_id', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Statistik task berhasil diambil',
+      data: {
+        workspace_id: 'ws_01',
+        byStatus: {},
+        byPriority: {},
+      },
+    });
+
+    await api.getDashboardTaskStatistics('ws_01');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/dashboard/tasks?workspace_id=ws_01',
+      expect.anything(),
+    );
+  });
+
+  it('getUserDetail GET /users/:id mengembalikan workspace bersama + role', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data user berhasil diambil',
+      data: {
+        id: 'usr_02',
+        name: 'Andi',
+        email: 'andi@ambado.id',
+        auth_provider: 'GOOGLE',
+        onboarding_completed: true,
+        workspaces: [
+          {
+            id: 'ws_01',
+            name: 'Software House',
+            role: { id: 'rol_01', name: 'MEMBER', is_system: true },
+          },
+        ],
+      },
+    });
+
+    const result = await api.getUserDetail('usr_02');
+
+    expect(result.name).toBe('Andi');
+    expect(result.workspaces).toHaveLength(1);
+    expect(result.workspaces[0]?.role.name).toBe('MEMBER');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/users/usr_02',
+      expect.anything(),
+    );
+  });
+
+  it('getUserDetail 404 melempar ApiError USER_NOT_FOUND', async () => {
+    mockFetch(404, {
+      success: false,
+      message: 'User tidak ditemukan',
+      error: { code: 'USER_NOT_FOUND', details: null },
+    });
+
+    await expect(api.getUserDetail('usr_tidak_ada')).rejects.toMatchObject({
+      code: 'USER_NOT_FOUND',
+      status: 404,
+    });
+    expect(pesanErrorApi(
+      new ApiError('User tidak ditemukan', 404, 'USER_NOT_FOUND'),
+    )).toBe('Pengguna tidak ditemukan di workspace ini.');
+  });
+
+  it('listTasks dengan filter assignee_id untuk MyTasksPage', async () => {
+    const fetchMock = mockFetch(200, {
+      success: true,
+      message: 'Data task berhasil diambil',
+      data: [],
+    });
+
+    const result = await api.listTasks('ws_01', { assigneeId: 'usr_01' });
+
+    expect(result).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/tasks?workspace_id=ws_01&limit=100&assignee_id=usr_01',
+      expect.anything(),
+    );
+  });
+});

@@ -700,12 +700,22 @@ async function getTemplateTasksPreview(
 
 // --- Tugas (spec v2 §14) ---
 
-async function listTasks(workspaceId: string): Promise<ApiTask[]> {
+async function listTasks(
+  workspaceId: string,
+  filters?: { assigneeId?: string; status?: string },
+): Promise<ApiTask[]> {
   // Limit 100 = maksimal backend; pagination belum dipakai halaman ini.
+  // Filter opsional: assignee_id dipakai MyTasksPage, status bila perlu.
   const query = new URLSearchParams({
     workspace_id: workspaceId,
     limit: '100',
   });
+  if (filters?.assigneeId) {
+    query.set('assignee_id', filters.assigneeId);
+  }
+  if (filters?.status) {
+    query.set('status', filters.status);
+  }
   return get<ApiTask[]>(`/tasks?${query.toString()}`);
 }
 
@@ -944,6 +954,75 @@ async function resendInvitation(id: string): Promise<ResentInvitation> {
   return post<ResentInvitation>(`/invitations/${id}/resend`, {});
 }
 
+// --- Dashboard (spec v2 §18) ---
+
+/** Ringkasan dashboard (GET /dashboard/summary, spec v2 §18.1). */
+export interface DashboardSummary {
+  workspace_id: string;
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  reviewTasks: number;
+  overdueTasks: number;
+  completionRate: number;
+}
+
+/** Statistik task (GET /dashboard/tasks, spec v2 §18.2). */
+export interface DashboardTaskStatistics {
+  workspace_id: string;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+}
+
+async function getDashboardSummary(
+  workspaceId: string,
+): Promise<DashboardSummary> {
+  // Angka dihitung server dari task dalam kewenangan pemanggil
+  // (MEMBER hanya melihat statistik task miliknya sendiri).
+  const query = new URLSearchParams({ workspace_id: workspaceId });
+  return get<DashboardSummary>(`/dashboard/summary?${query.toString()}`);
+}
+
+async function getDashboardTaskStatistics(
+  workspaceId: string,
+  filters?: { projectId?: string; divisionId?: string },
+): Promise<DashboardTaskStatistics> {
+  const query = new URLSearchParams({ workspace_id: workspaceId });
+  if (filters?.projectId) {
+    query.set('project_id', filters.projectId);
+  }
+  if (filters?.divisionId) {
+    query.set('division_id', filters.divisionId);
+  }
+  return get<DashboardTaskStatistics>(`/dashboard/tasks?${query.toString()}`);
+}
+
+// --- Users (spec v2 §7) ---
+
+/**
+ * Detail user (GET /users/:id, spec v2 §7.2). Daftar `workspaces`
+ * hanya berisi workspace yang juga diikuti pemanggil, beserta
+ * role user yang dituju di sana. Daftar pengguna (GET /users)
+ * tidak ada di backend — daftar anggota diambil dari
+ * GET /workspaces/:id/members (langkah 6).
+ */
+export interface ApiUserDetail {
+  id: string;
+  name: string;
+  email: string;
+  auth_provider: 'EMAIL' | 'GOOGLE';
+  onboarding_completed: boolean;
+  workspaces: {
+    id: string;
+    name: string;
+    role: { id: string; name: string; is_system: boolean };
+  }[];
+}
+
+async function getUserDetail(userId: string): Promise<ApiUserDetail> {
+  return get<ApiUserDetail>(`/users/${userId}`);
+}
+
 const api = {
   getAccessToken,
   putAccessToken,
@@ -994,6 +1073,9 @@ const api = {
   listInvitations,
   createInvitation,
   resendInvitation,
+  getDashboardSummary,
+  getDashboardTaskStatistics,
+  getUserDetail,
 };
 
 export default api;
