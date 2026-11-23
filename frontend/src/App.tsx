@@ -282,6 +282,7 @@ function App() {
         page === "register" ? (
           <RegisterPage
             onRegistered={handleRegistered}
+              onAuthenticated={handleAuthenticated}
             onGoLogin={() => setPage("login")}
           />
         ) : (
