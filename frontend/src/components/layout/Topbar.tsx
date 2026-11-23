@@ -40,9 +40,6 @@ export function Topbar({
         <p className="font-mk-mono text-[11px] tracking-[0.14em] text-mk-muted dark:text-[#a3a3a3] uppercase mt-0.5">{meta.sub}</p>
       </div>
       <div className="flex-1" />
-      <button type="button" className={btnClass} onClick={onToggleTheme}>
-        {theme === 'dark' ? 'LIGHT' : 'DARK'}
-      </button>
       {workspaceName && (
         <div className="flex flex-col gap-1.5 flex-none">
           <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">Workspace Aktif</span>
@@ -52,6 +49,9 @@ export function Topbar({
           </span>
         </div>
       )}
+      <button type="button" className={btnClass} onClick={onToggleTheme}>
+        {theme === 'dark' ? 'LIGHT' : 'DARK'}
+      </button>
       <button type="button" className={btnRedClass} onClick={onLogout}>
         Keluar
       </button>
