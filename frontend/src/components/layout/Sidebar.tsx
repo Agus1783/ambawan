@@ -1,6 +1,5 @@
 import type { PageId, RoleName } from '../../interfaces/types';
 import type { PublicUser } from '../../utils/api';
-import { btnClass, btnRedClass } from '../ui/UiClasses';
 
 const NAV: { id: PageId; label: string; roles: RoleName[] }[] = [
   { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
@@ -17,9 +16,6 @@ export function Sidebar({
   role,
   user,
   roleLabel,
-  theme,
-  onToggleTheme,
-  onLogout,
   onNavigate,
 }: {
   page: PageId;
@@ -28,9 +24,6 @@ export function Sidebar({
   user: PublicUser;
   /** Label role user di workspace aktif — nilai yang sama dengan yang dipakai Topbar, supaya tidak ada dua versi role. */
   roleLabel: string | null;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
-  onLogout: () => void;
   onNavigate: (page: PageId) => void;
 }) {
   return (
@@ -59,25 +52,15 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Akun + tombol aksi di bawah sidebar — satu-satunya tempat info
-          akun tampil. Topbar tidak lagi menampilkan nama/email user,
-          supaya tidak ada duplikasi. */}
-      <div className="mt-auto flex flex-col gap-3 border-t-2 border-dashed border-black dark:border-mk-bg pt-3">
-        <div>
-          <div className="font-extrabold uppercase break-words">{user.name}</div>
-          <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em] break-all">{user.email}</div>
-          {roleLabel && (
-            <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{roleLabel}</div>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <button type="button" className={btnClass} onClick={onToggleTheme}>
-            {theme === 'dark' ? 'LIGHT' : 'DARK'}
-          </button>
-          <button type="button" className={btnRedClass} onClick={onLogout}>
-            Keluar
-          </button>
-        </div>
+      {/* Info akun di bawah sidebar — satu-satunya tempat info akun
+          tampil. Topbar tidak menampilkan nama/email user, supaya
+          tidak ada duplikasi. Tombol tema + keluar ada di Topbar. */}
+      <div className="mt-auto border-t-2 border-dashed border-black dark:border-mk-bg pt-3">
+        <div className="font-extrabold uppercase break-words">{user.name}</div>
+        <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em] break-all">{user.email}</div>
+        {roleLabel && (
+          <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{roleLabel}</div>
+        )}
       </div>
     </aside>
   );

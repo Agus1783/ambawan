@@ -302,11 +302,6 @@ function App() {
                 ? labelRoleApi(activeWorkspace.role.name)
                 : null
             }
-            theme={theme}
-            onToggleTheme={() =>
-              setTheme((t) => (t === "dark" ? "light" : "dark"))
-            }
-            onLogout={handleLogout}
             onNavigate={navigate}
           />
 
