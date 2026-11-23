@@ -14,6 +14,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * `uploads/` dan disajikan statis di `/uploads` seperti
  * sebelumnya — metadata + respons API tetap sama di kedua mode.
  *
+ * Bila `SUPABASE_URL` terisi tapi bukan URL http/https yang valid
+ * (mis. placeholder tanpa `https://`, atau key yang salah tempel
+ * di kolom URL), konfigurasi dianggap belum terisi dan file
+ * disimpan lokal, dengan peringatan di log — supaya salah isi
+ * `.env` tidak membuat upload lampiran gagal 500.
+ *
  * Hapus file selalu best-effort: kegagalan menghapus file fisik
  * tidak pernah menggagalkan request hapus lampiran.
  */
@@ -31,6 +37,21 @@ function getStorageConfig(): StorageConfig | null {
   const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
   const bucket = process.env['SUPABASE_STORAGE_BUCKET'];
   if (!url || !serviceRoleKey || !bucket) {
+    return null;
+  }
+  // createClient() throw bila URL tidak valid — validasi dulu di
+  // sini supaya nilai .env yang salah tidak menggagalkan upload
+  // (kasus nyata: SUPABASE_URL terisi placeholder/typo).
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('protokol bukan http/https');
+    }
+  } catch {
+    globalThis.console.warn(
+      '[storage] SUPABASE_URL tidak valid, pakai penyimpanan lokal:',
+      url,
+    );
     return null;
   }
   return { url, serviceRoleKey, bucket };
