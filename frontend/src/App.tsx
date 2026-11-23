@@ -36,7 +36,6 @@ function App() {
   const [page, setPage] = useState<PageId>(() =>
     api.getAccessToken() ? "dashboard" : "login",
   );
-  const [role, setRole] = useState<RoleName>("MEMBER");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       return localStorage.getItem("ambado-theme") === "dark" ? "dark" : "light";
@@ -119,7 +118,6 @@ function App() {
     setWorkspaces([]);
     setActiveWorkspaceId(null);
     saveActiveWorkspaceId(null);
-    setRole("MEMBER");
     setPage("login");
   };
 
@@ -131,6 +129,15 @@ function App() {
 
   const activeWorkspace =
     workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
+
+  // Role gating diturunkan langsung dari workspace aktif, bukan state
+  // terpisah: satu sumber dengan label role di Topbar/Sidebar.
+  // Sebelumnya `role` disimpan di state dan sempat tertinggal di
+  // MEMBER — sidebar menampilkan "Anggota" dan menu Project/Delegasi/
+  // Organisasi hilang, padahal role di workspace adalah Owner.
+  const role: RoleName = activeWorkspace
+    ? roleNameToGateRole(activeWorkspace.role.name)
+    : "MEMBER";
 
   // Muat workspace setelah user terotentikasi (login / pulih sesi).
   useEffect(() => {
@@ -151,10 +158,6 @@ function App() {
         );
         saveActiveWorkspaceId(resolved);
         setActiveWorkspaceId(resolved);
-        const active = items.find((w) => w.id === resolved) ?? null;
-        if (active) {
-          setRole(roleNameToGateRole(active.role.name));
-        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -169,10 +172,6 @@ function App() {
   const handleSelectWorkspace = (id: string) => {
     saveActiveWorkspaceId(id);
     setActiveWorkspaceId(id);
-    const ws = workspaces.find((w) => w.id === id);
-    if (ws) {
-      setRole(roleNameToGateRole(ws.role.name));
-    }
   };
 
   const handleWorkspaceCreated = (ws: Workspace) => {
@@ -282,7 +281,7 @@ function App() {
         page === "register" ? (
           <RegisterPage
             onRegistered={handleRegistered}
-              onAuthenticated={handleAuthenticated}
+            onAuthenticated={handleAuthenticated}
             onGoLogin={() => setPage("login")}
           />
         ) : (
@@ -294,7 +293,22 @@ function App() {
         )
       ) : (
         <div className="flex min-h-screen">
-          <Sidebar page={page} role={role} userName={user.name} onNavigate={navigate} />
+          <Sidebar
+            page={page}
+            role={role}
+            user={user}
+            roleLabel={
+              activeWorkspace
+                ? labelRoleApi(activeWorkspace.role.name)
+                : null
+            }
+            theme={theme}
+            onToggleTheme={() =>
+              setTheme((t) => (t === "dark" ? "light" : "dark"))
+            }
+            onLogout={handleLogout}
+            onNavigate={navigate}
+          />
 
           <main className="flex-1 px-6 py-5 pb-10 min-w-0">
             <Topbar
@@ -309,7 +323,6 @@ function App() {
                   ? labelRoleApi(activeWorkspace.role.name)
                   : null
               }
-              user={user}
               onLogout={handleLogout}
             />
 

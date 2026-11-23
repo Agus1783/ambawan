@@ -1,5 +1,4 @@
 import type { PageId } from '../../interfaces/types';
-import type { PublicUser } from '../../utils/api';
 import { btnClass, btnRedClass } from '../ui/UiClasses';
 
 const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
@@ -21,7 +20,6 @@ export function Topbar({
   onToggleTheme,
   workspaceName,
   roleLabel,
-  user,
   onLogout,
 }: {
   page: PageId;
@@ -31,8 +29,7 @@ export function Topbar({
   workspaceName?: string | null;
   /** Label role user di workspace aktif dari API; null bila belum ada. */
   roleLabel?: string | null;
-  user?: PublicUser | null;
-  onLogout?: () => void;
+  onLogout: () => void;
 }) {
   const meta = PAGE_TITLES[page];
 
@@ -43,9 +40,6 @@ export function Topbar({
         <p className="font-mk-mono text-[11px] tracking-[0.14em] text-mk-muted dark:text-[#a3a3a3] uppercase mt-0.5">{meta.sub}</p>
       </div>
       <div className="flex-1" />
-      <button type="button" className={btnClass} onClick={onToggleTheme}>
-        {theme === 'dark' ? 'LIGHT' : 'DARK'}
-      </button>
       {workspaceName && (
         <div className="flex flex-col gap-1.5 flex-none">
           <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">Workspace Aktif</span>
@@ -55,17 +49,17 @@ export function Topbar({
           </span>
         </div>
       )}
-      {user && (
-        <div className="flex flex-col gap-1.5 flex-none">
-          <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">{user.email}</span>
-          <span className="font-bold">{user.name}</span>
-        </div>
-      )}
-      {onLogout && (
+      {/* Sidebar disembunyikan di layar kecil (hidden lg:flex), jadi
+          tombol tema + keluar tetap tersedia di sini khusus layar kecil.
+          Di desktop kedua tombol itu ada di bawah sidebar. */}
+      <div className="flex gap-2 lg:hidden">
+        <button type="button" className={btnClass} onClick={onToggleTheme}>
+          {theme === 'dark' ? 'LIGHT' : 'DARK'}
+        </button>
         <button type="button" className={btnRedClass} onClick={onLogout}>
           Keluar
         </button>
-      )}
+      </div>
     </div>
   );
 }
