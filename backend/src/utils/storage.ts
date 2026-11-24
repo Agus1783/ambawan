@@ -33,9 +33,11 @@ interface StorageConfig {
 }
 
 function getStorageConfig(): StorageConfig | null {
-  const url = process.env['SUPABASE_URL'];
-  const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
-  const bucket = process.env['SUPABASE_STORAGE_BUCKET'];
+  // Nilai .env yang diketik manual di Windows rawan kelebihan spasi
+  // di ujung (atau spasi di tengah nama bucket) — rapikan dulu.
+  const url = process.env['SUPABASE_URL']?.trim();
+  const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY']?.trim();
+  const bucket = process.env['SUPABASE_STORAGE_BUCKET']?.trim();
   if (!url || !serviceRoleKey || !bucket) {
     return null;
   }
@@ -51,6 +53,20 @@ function getStorageConfig(): StorageConfig | null {
     globalThis.console.warn(
       '[storage] SUPABASE_URL tidak valid, pakai penyimpanan lokal:',
       url,
+    );
+    return null;
+  }
+  // Nama bucket Supabase harus huruf kecil/angka, diawali huruf
+  // atau angka, hanya boleh huruf kecil, angka, titik, `_`, `-`
+  // (maks 63 karakter). Nama bucket yang salah (huruf besar, spasi,
+  // garis miring, atau malah URL) membuat Supabase menolak request
+  // upload dengan "Invalid path specified in request URL" — jadi
+  // perlakukan sebagai belum terkonfigurasi dan pakai lokal saja,
+  // dengan peringatan di log.
+  if (!/^[a-z0-9][a-z0-9._-]{0,62}$/.test(bucket)) {
+    globalThis.console.warn(
+      '[storage] SUPABASE_STORAGE_BUCKET tidak valid, pakai penyimpanan lokal:',
+      bucket,
     );
     return null;
   }
