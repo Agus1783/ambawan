@@ -1,7 +1,5 @@
-import type { ChangeEvent } from 'react';
-import type { PageId, RoleName } from '../../interfaces/types';
-import { ROLE_LABELS } from '../../data/mockData';
-import { btnClass } from '../ui/UiClasses';
+import type { PageId } from '../../interfaces/types';
+import { btnClass, btnRedClass } from '../ui/UiClasses';
 
 const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   dashboard: { title: 'Dashboard', sub: 'Ringkasan progres & analitik' },
@@ -11,20 +9,27 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   delegation: { title: 'Delegasi Tugas', sub: 'Delegasi berjenjang ke divisi & anggota' },
   organization: { title: 'Organisasi', sub: 'Divisi, anggota, dan role (RBAC)' },
   myTasks: { title: 'Tugas Saya', sub: 'Tugas yang ditugaskan ke kamu' },
+  workspace: { title: 'Workspace', sub: 'Workspace, bidang usaha & saran proyek' },
+  login: { title: 'Masuk', sub: 'Masuk ke AmbaDo' },
+  register: { title: 'Daftar', sub: 'Buat akun AmbaDo' },
 };
 
 export function Topbar({
   page,
   theme,
   onToggleTheme,
-  role,
-  onRoleChange,
+  workspaceName,
+  roleLabel,
+  onLogout,
 }: {
   page: PageId;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  role: RoleName;
-  onRoleChange: (role: RoleName) => void;
+  /** Nama workspace aktif dari API (langkah 2); null bila belum ada. */
+  workspaceName?: string | null;
+  /** Label role user di workspace aktif dari API; null bila belum ada. */
+  roleLabel?: string | null;
+  onLogout: () => void;
 }) {
   const meta = PAGE_TITLES[page];
 
@@ -35,21 +40,21 @@ export function Topbar({
         <p className="font-mk-mono text-[11px] tracking-[0.14em] text-mk-muted dark:text-[#a3a3a3] uppercase mt-0.5">{meta.sub}</p>
       </div>
       <div className="flex-1" />
+      {workspaceName && (
+        <div className="flex flex-col gap-1.5 flex-none">
+          <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">Workspace Aktif</span>
+          <span className="font-bold">
+            {workspaceName}
+            {roleLabel ? ` · ${roleLabel}` : ''}
+          </span>
+        </div>
+      )}
       <button type="button" className={btnClass} onClick={onToggleTheme}>
         {theme === 'dark' ? 'LIGHT' : 'DARK'}
       </button>
-      <label className="flex flex-col gap-1.5 flex-none">
-        <span className="font-mk-mono text-[10px] tracking-[0.18em] uppercase text-mk-muted dark:text-[#a3a3a3]">Lihat Sebagai Role</span>
-        <select
-          className="border-2 border-black dark:border-mk-bg rounded-lg px-3 py-2 font-bold bg-white dark:bg-[#2d2d2d] shadow-brutal-sm dark:shadow-brutal-sm-light"
-          value={role}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) => onRoleChange(e.target.value as RoleName)}
-        >
-          {(Object.keys(ROLE_LABELS) as RoleName[]).map((r) => (
-            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-          ))}
-        </select>
-      </label>
+      <button type="button" className={btnRedClass} onClick={onLogout}>
+        Keluar
+      </button>
     </div>
   );
 }

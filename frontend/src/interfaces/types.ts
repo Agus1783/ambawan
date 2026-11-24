@@ -4,9 +4,9 @@ export interface NavItem {
   label: string
 }
 
-export type PageId = 'dashboard' | 'projects' | 'tasks' | 'taskDetail' | 'delegation' | 'organization' | 'myTasks';
+export type PageId = 'dashboard' | 'projects' | 'tasks' | 'taskDetail' | 'delegation' | 'organization' | 'myTasks' | 'workspace' | 'login' | 'register';
 
-export type RoleName = 'ADMIN' | 'MANAGER' | 'DIVISION_LEADER' | 'MEMBER';
+export type RoleName = 'ADMIN' | 'OWNER' | 'MANAGER' | 'DIVISION_LEADER' | 'MEMBER';
 
 export type TaskStatus =
   | 'BACKLOG'

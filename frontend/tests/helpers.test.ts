@@ -55,6 +55,16 @@ describe('formatFileSize', () => {
 });
 
 describe('isOverdue', () => {
+  // Tanggal relatif terhadap hari ini: 'hari ini' dihitung dinamis di
+  // helpers (sebelumnya hardcode 2026-11-04 dari era mock).
+  const shiftDays = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
+  };
+
   const base: Task = {
     id: 'tsk_x',
     projectId: 'prj_01',
@@ -63,17 +73,17 @@ describe('isOverdue', () => {
     description: '',
     status: 'ASSIGNED',
     priority: 'P3',
-    deadline: '2026-11-03',
+    deadline: shiftDays(-1),
     divisionId: null,
     assigneeId: null,
   };
 
-  it('true untuk deadline lewat dari 2026-11-04 dan status belum selesai', () => {
+  it('true untuk deadline kemarin dan status belum selesai', () => {
     expect(isOverdue(base)).toBe(true);
   });
 
-  it('false untuk deadline di masa depan', () => {
-    expect(isOverdue({ ...base, deadline: '2026-11-05' })).toBe(false);
+  it('false untuk deadline besok', () => {
+    expect(isOverdue({ ...base, deadline: shiftDays(1) })).toBe(false);
   });
 
   it('false untuk task COMPLETED meski deadline lewat', () => {

@@ -1,23 +1,29 @@
 import type { PageId, RoleName } from '../../interfaces/types';
-import { CURRENT_USER_ID, ROLE_LABELS } from '../../data/mockData';
-import { userName } from '../../utils/helpers';
+import type { PublicUser } from '../../utils/api';
 
 const NAV: { id: PageId; label: string; roles: RoleName[] }[] = [
-  { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
-  { id: 'projects', label: 'Project', roles: ['ADMIN', 'MANAGER'] },
-  { id: 'tasks', label: 'Daftar Tugas', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
-  { id: 'delegation', label: 'Delegasi', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER'] },
-  { id: 'organization', label: 'Organisasi', roles: ['ADMIN'] },
-  { id: 'myTasks', label: 'Tugas Saya', roles: ['ADMIN', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'dashboard', label: 'Dashboard', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'workspace', label: 'Workspace', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'projects', label: 'Project', roles: ['ADMIN', 'OWNER', 'MANAGER'] },
+  { id: 'tasks', label: 'Daftar Tugas', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
+  { id: 'delegation', label: 'Delegasi', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER'] },
+  { id: 'organization', label: 'Organisasi', roles: ['ADMIN', 'OWNER'] },
+  { id: 'myTasks', label: 'Tugas Saya', roles: ['ADMIN', 'OWNER', 'MANAGER', 'DIVISION_LEADER', 'MEMBER'] },
 ];
 
 export function Sidebar({
   page,
   role,
+  user,
+  roleLabel,
   onNavigate,
 }: {
   page: PageId;
   role: RoleName;
+  /** User yang sedang login (dari GET /auth/me). */
+  user: PublicUser;
+  /** Label role user di workspace aktif — nilai yang sama dengan yang dipakai Topbar, supaya tidak ada dua versi role. */
+  roleLabel: string | null;
   onNavigate: (page: PageId) => void;
 }) {
   return (
@@ -46,9 +52,15 @@ export function Sidebar({
         ))}
       </nav>
 
+      {/* Info akun di bawah sidebar — satu-satunya tempat info akun
+          tampil. Topbar tidak menampilkan nama/email user, supaya
+          tidak ada duplikasi. Tombol tema + keluar ada di Topbar. */}
       <div className="mt-auto border-t-2 border-dashed border-black dark:border-mk-bg pt-3">
-        <div className="font-extrabold uppercase">{userName(CURRENT_USER_ID)}</div>
-        <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{ROLE_LABELS[role]} · MOCKUP</div>
+        <div className="font-extrabold uppercase break-words">{user.name}</div>
+        <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em] break-all">{user.email}</div>
+        {roleLabel && (
+          <div className="font-mk-mono text-[11px] text-mk-muted dark:text-[#a3a3a3] tracking-[0.12em]">{roleLabel}</div>
+        )}
       </div>
     </aside>
   );

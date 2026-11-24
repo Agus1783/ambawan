@@ -2,6 +2,7 @@ import type { Attachment, Division, HistoryItem, Priority, Project, RoleName, Ta
 
 export const ROLE_LABELS: Record<RoleName, string> = {
   ADMIN: 'Administrator',
+  OWNER: 'Owner',
   MANAGER: 'Manager',
   DIVISION_LEADER: 'Ketua Divisi',
   MEMBER: 'Anggota',
