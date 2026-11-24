@@ -44,17 +44,35 @@ function getStorageConfig(): StorageConfig | null {
   // createClient() throw bila URL tidak valid — validasi dulu di
   // sini supaya nilai .env yang salah tidak menggagalkan upload
   // (kasus nyata: SUPABASE_URL terisi placeholder/typo).
+  let normalizedUrl: string;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new Error('protokol bukan http/https');
     }
+    normalizedUrl = parsed.href;
   } catch {
     globalThis.console.warn(
       '[storage] SUPABASE_URL tidak valid, pakai penyimpanan lokal:',
       url,
     );
     return null;
+  }
+  // SUPABASE_URL yang benar hanya Project URL polos
+  // (`https://<ref>.supabase.co`). Bila terlanjur ke-paste dengan
+  // tambahan path `/storage/v1`, klien Supabase akan membangun
+  // `/storage/storage/v1/...` dan server menolak path-nya — jadi
+  // buang akhiran itu (dan garis miring di ujung) sambil memberi
+  // peringatan, supaya URL-nya tetap bisa dipakai.
+  normalizedUrl = normalizedUrl.replace(/\/storage\/v1\/?$/, '');
+  normalizedUrl = normalizedUrl.replace(/\/+$/, '');
+  if (normalizedUrl !== url) {
+    globalThis.console.warn(
+      '[storage] SUPABASE_URL dirapikan (buang akhiran path):',
+      url,
+      '->',
+      normalizedUrl,
+    );
   }
   // Nama bucket Supabase harus huruf kecil/angka, diawali huruf
   // atau angka, hanya boleh huruf kecil, angka, titik, `_`, `-`
@@ -70,7 +88,7 @@ function getStorageConfig(): StorageConfig | null {
     );
     return null;
   }
-  return { url, serviceRoleKey, bucket };
+  return { url: normalizedUrl, serviceRoleKey, bucket };
 }
 
 /** True bila Supabase Storage sudah dikonfigurasi (ketiga env terisi). */
@@ -126,6 +144,16 @@ export async function storeAttachmentFile(
       upsert: false,
     });
   if (error) {
+    // Catat bucket + path yang ditolak (bukan rahasia) supaya
+    // penyebabnya bisa dilihat di log terminal tanpa menebak-nebak.
+    globalThis.console.error(
+      '[storage] Upload ke Supabase ditolak. bucket:',
+      config.bucket,
+      'path:',
+      storagePath,
+      'pesan:',
+      error.message,
+    );
     throw new Error(`Gagal mengunggah file ke Supabase Storage: ${error.message}`);
   }
   const { data } = supabase.storage
