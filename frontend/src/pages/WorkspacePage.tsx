@@ -33,9 +33,13 @@ import {
  * - Bidang usaha baru bisa ditambahkan inline (POST /industries) —
  *   satu-satunya jalannya lewat memilih "Lainnya" di dropdown,
  *   yang otomatis membuka form bidang usaha baru di bawahnya.
- *   Bidang usaha yang baru dibuat dipakai untuk workspace ini
- *   tapi TIDAK ditambahkan ke pilihan dropdown (dropdown hanya
- *   berisi bidang usaha sistem).
+ *   Tombol "Simpan bidang usaha" HANYA mengonfirmasi nama itu
+ *   secara lokal (belum menyentuh database); bidang usaha baru
+ *   benar-benar dibuat lewat API saat user menekan "Buat
+ *   Workspace", tepat sebelum workspace-nya dibuat. Bidang usaha
+ *   yang baru dibuat dipakai untuk workspace ini tapi TIDAK
+ *   ditambahkan ke pilihan dropdown (dropdown hanya berisi
+ *   bidang usaha sistem).
  */
 export function WorkspacePage({
   workspaces,
@@ -61,22 +65,30 @@ export function WorkspacePage({
 
   const [newIndustryName, setNewIndustryName] = useState('');
   const [newIndustryDescription, setNewIndustryDescription] = useState('');
-  const [creatingIndustry, setCreatingIndustry] = useState(false);
   const [industryError, setIndustryError] = useState<string | null>(null);
 
-  // Bidang usaha yang baru dibuat lewat form inline. Sengaja TIDAK
-  // dimasukkan ke daftar `industries` supaya tidak muncul sebagai
-  // pilihan dropdown — tapi tetap dipakai saat membuat workspace.
-  const [customIndustry, setCustomIndustry] = useState<Industry | null>(null);
+  // Bidang usaha baru yang sudah dikonfirmasi lewat tombol "Simpan
+  // bidang usaha", tapi BELUM dibuat di database. `id` baru terisi
+  // setelah API POST /industries berhasil dipanggil saat submit
+  // (disimpan supaya percobaan ulang tidak membuat duplikat).
+  // Sengaja tidak dimasukkan ke daftar `industries` supaya tidak
+  // muncul sebagai pilihan dropdown.
+  const [pendingIndustry, setPendingIndustry] = useState<{
+    id?: string;
+    name: string;
+    description: string;
+  } | null>(null);
 
   const alreadyOwns = workspaces.some((w) => w.is_owner);
   const selectedIndustry = industries.find((i) => i.id === industryId) ?? null;
   // "Lainnya" = pemicu form bidang usaha baru (otomatis terbuka).
   const isOtherIndustry =
     selectedIndustry?.name.trim().toLowerCase() === 'lainnya';
-  // Bidang usaha yang dipakai saat submit: yang baru dibuat (bila
-  // ada), kalau tidak yang dipilih di dropdown.
-  const effectiveIndustryId = customIndustry?.id ?? industryId;
+  // Workspace bisa dibuat bila ada bidang usaha baru yang sudah
+  // dikonfirmasi, atau ada bidang sistem yang dipilih (bukan
+  // "Lainnya" yang masih menunggu nama baru).
+  const canSubmitIndustry =
+    !!pendingIndustry || (!!industryId && !isOtherIndustry);
 
   // Form buat workspace hanya dibuka lewat tombol, dan hanya bila
   // user belum memiliki workspace (batas backend: satu per akun).
@@ -110,26 +122,50 @@ export function WorkspacePage({
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault();
-    // "Lainnya" saja belum cukup: user harus menyimpan dulu bidang
-    // usaha barunya lewat form inline, baru workspace bisa dibuat.
-    if (
-      !name.trim() ||
-      !effectiveIndustryId ||
-      creating ||
-      alreadyOwns ||
-      (isOtherIndustry && !customIndustry)
-    ) {
+    if (!name.trim() || creating || alreadyOwns || !canSubmitIndustry) {
       return;
     }
     setCreating(true);
     setCreateError(null);
+    setIndustryError(null);
     try {
+      // Bidang usaha baru baru dibuat di database SEKARANG (bila
+      // ada yang dikonfirmasi), tepat sebelum workspace-nya.
+      let industryIdToUse = industryId;
+      if (pendingIndustry) {
+        if (pendingIndustry.id) {
+          // Sudah dibuat pada percobaan sebelumnya yang gagal di
+          // langkah workspace — pakai lagi, jangan buat duplikat.
+          industryIdToUse = pendingIndustry.id;
+        } else {
+          try {
+            const createdIndustry = await api.createIndustry({
+              name: pendingIndustry.name,
+              description: pendingIndustry.description || undefined,
+            });
+            industryIdToUse = createdIndustry.id;
+            setPendingIndustry({
+              ...pendingIndustry,
+              id: createdIndustry.id,
+            });
+          } catch (err: unknown) {
+            // Gagal di langkah bidang usaha: tampilkan di dekat
+            // form-nya dan buka lagi form itu (nama masih terisi)
+            // supaya bisa diperbaiki, tanpa menyentuh workspace.
+            setIndustryError(pesanErrorApi(err));
+            setPendingIndustry(null);
+            return;
+          }
+        }
+      }
       const created = await api.createWorkspace({
         name: name.trim(),
-        industry_id: effectiveIndustryId,
+        industry_id: industryIdToUse,
       });
       onWorkspaceCreated(created);
       setName('');
+      setPendingIndustry(null);
+      setIndustryId('');
       // Workspace berhasil dibuat: daftar tampil, form pembuatan
       // hilang.
       setShowForm(false);
@@ -140,28 +176,18 @@ export function WorkspacePage({
     }
   };
 
-  const submitNewIndustry = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newIndustryName.trim() || creatingIndustry) {
+  // "Simpan bidang usaha" hanya mengonfirmasi nama secara lokal —
+  // TIDAK memanggil API. Pembuatan di database terjadi di
+  // submitCreate, saat user menekan "Buat Workspace".
+  const confirmNewIndustry = () => {
+    if (!newIndustryName.trim()) {
       return;
     }
-    setCreatingIndustry(true);
+    setPendingIndustry({
+      name: newIndustryName.trim(),
+      description: newIndustryDescription.trim(),
+    });
     setIndustryError(null);
-    try {
-      const created = await api.createIndustry({
-        name: newIndustryName.trim(),
-        description: newIndustryDescription.trim() || undefined,
-      });
-      // Dipakai untuk workspace ini, tapi tidak ditambahkan ke
-      // pilihan dropdown.
-      setCustomIndustry(created);
-      setNewIndustryName('');
-      setNewIndustryDescription('');
-    } catch (err: unknown) {
-      setIndustryError(pesanErrorApi(err));
-    } finally {
-      setCreatingIndustry(false);
-    }
   };
 
   return (
@@ -235,16 +261,16 @@ export function WorkspacePage({
               }
             />
           </label>
-          {customIndustry ? (
+          {pendingIndustry ? (
             <div className={fieldClass}>
               <span className={fieldLabelClass}>Bidang usaha</span>
               <span className="flex items-center gap-3 flex-wrap">
-                <strong>{customIndustry.name}</strong>
+                <strong>{pendingIndustry.name}</strong>
                 <button
                   type="button"
                   className={btnClass}
                   onClick={() => {
-                    setCustomIndustry(null);
+                    setPendingIndustry(null);
                     setIndustryId('');
                   }}
                 >
@@ -311,12 +337,10 @@ export function WorkspacePage({
                   <button
                     type="button"
                     className={btnBlueClass}
-                    disabled={creatingIndustry || !newIndustryName.trim()}
-                    onClick={submitNewIndustry}
+                    disabled={!newIndustryName.trim()}
+                    onClick={confirmNewIndustry}
                   >
-                    {creatingIndustry
-                      ? 'Menyimpan...'
-                      : 'Simpan bidang usaha'}
+                    Simpan bidang usaha
                   </button>
                   <button
                     type="button"
@@ -338,11 +362,7 @@ export function WorkspacePage({
               type="submit"
               className={btnYellowClass}
               disabled={
-                creating ||
-                alreadyOwns ||
-                !name.trim() ||
-                !effectiveIndustryId ||
-                (isOtherIndustry && !customIndustry)
+                creating || alreadyOwns || !name.trim() || !canSubmitIndustry
               }
             >
               {creating ? 'Membuat...' : 'Buat Workspace'}
