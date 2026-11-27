@@ -1,165 +1,171 @@
-import { useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
-import { CURRENT_USER_ID, ROLE_LABELS, divisions, users } from '../data/mockData';
-import { divisionName } from '../utils/helpers';
-import type { RoleName, User } from '../interfaces/types';
-import { Chip } from '../components/ui/Chip';
-import { Modal } from '../components/ui/Modal';
+// Halaman Organisasi (Tahap 2 langkah 6 + 8): divisi, anggota,
+// dan undangan dari API untuk workspace aktif.
+//
+// Halaman ini hanya memuat data + menampilkan pesan; tiap bagian
+// hidup di komponennya sendiri:
+// - `components/organization/DivisionSection` — kartu divisi,
+//   buat divisi, tetapkan ketua (hanya OWNER).
+// - `components/organization/MemberSection` — tabel anggota, edit
+//   role, hapus anggota (hanya OWNER), detail user
+//   (GET /users/:id).
+// - `components/organization/InvitationSection` — form undang +
+//   daftar + kirim ulang (OWNER dan DIVISION_LEADER).
+// Keanggotaan divisi di API dinyatakan lewat penugasan task,
+// bukan kolom anggota — jadi tabel anggota tidak punya kolom
+// Divisi seperti versi mock. Form undang mengundang ke workspace;
+// undangan khusus proyek (project_id) belum didukung form ini.
+import { useEffect, useState } from 'react';
+import type { RoleName } from '../interfaces/types';
+import api, {
+  pesanErrorApi,
+  type Division,
+  type Invitation,
+  type Workspace,
+  type WorkspaceMember,
+  type WorkspaceRoleDetail,
+} from '../utils/api';
+import { DivisionSection } from '../components/organization/DivisionSection';
+import { InvitationSection } from '../components/organization/InvitationSection';
+import { MemberSection } from '../components/organization/MemberSection';
 import {
-  btnBlueClass,
   btnClass,
-  btnRedClass,
-  btnYellowClass,
-  cardBaseClass,
   cardClass,
-  fieldClass,
-  fieldLabelClass,
-  grid3Class,
-  inputClass,
   mutedClass,
-  sectionTitleClass,
   stackClass,
-  tableTdClass,
-  tableThClass,
 } from '../components/ui/UiClasses';
 
-export function OrganizationPage() {
-  const [memberList, setMemberList] = useState<User[]>(users);
-  const [editing, setEditing] = useState<User | null>(null);
-  const [editRole, setEditRole] = useState<RoleName>('MEMBER');
-  const [editDivisionId, setEditDivisionId] = useState('');
-  const [deleting, setDeleting] = useState<User | null>(null);
+const CAN_MANAGE_DIVISIONS: RoleName[] = ['ADMIN', 'OWNER'];
+const CAN_INVITE: RoleName[] = ['ADMIN', 'OWNER', 'DIVISION_LEADER'];
+const CAN_MANAGE_MEMBERS: RoleName[] = ['ADMIN', 'OWNER'];
 
-  const openEdit = (u: User) => {
-    setEditing(u);
-    setEditRole(u.role);
-    setEditDivisionId(u.divisionId);
+export function OrganizationPage({
+  activeWorkspace,
+  role,
+  currentUserId,
+}: {
+  activeWorkspace: Workspace | null;
+  role: RoleName;
+  currentUserId: string;
+}) {
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [roles, setRoles] = useState<WorkspaceRoleDetail[]>([]);
+  // Workspace yang datanya sudah dimuat; loading diturunkan dari sini
+  // (pola TasksPage) supaya effect tidak memanggil setState sinkron.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loading = activeWorkspace !== null && loadedFor !== activeWorkspace.id;
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const fetchOrganizationData = (
+    workspaceId: string,
+    isCancelled?: () => boolean,
+  ) => {
+    return Promise.all([
+      api.listDivisions(workspaceId),
+      api.listWorkspaceMembers(workspaceId),
+      api.listInvitations(workspaceId),
+      api.listWorkspaceRoles(workspaceId),
+    ])
+      .then(([apiDivisions, apiMembers, apiInvitations, apiRoles]) => {
+        if (isCancelled?.()) return;
+        setDivisions(apiDivisions);
+        setMembers(apiMembers);
+        setInvitations(apiInvitations);
+        setRoles(apiRoles);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setError(pesanErrorApi(err));
+        setDivisions([]);
+        setMembers([]);
+        setInvitations([]);
+        setRoles([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setLoadedFor(workspaceId);
+      });
   };
 
-  const submitEdit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!editing) return;
-    setMemberList((prev) =>
-      prev.map((u) => (u.id === editing.id ? { ...u, role: editRole, divisionId: editDivisionId } : u)),
+  useEffect(() => {
+    if (!activeWorkspace) {
+      return;
+    }
+    let cancelled = false;
+    void fetchOrganizationData(activeWorkspace.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace]);
+
+  const reload = () => {
+    if (!activeWorkspace) return;
+    setLoadedFor(null);
+    void fetchOrganizationData(activeWorkspace.id);
+  };
+
+  if (!activeWorkspace) {
+    return (
+      <div className={stackClass}>
+        <div className={cardClass}>
+          <p className={mutedClass}>
+            Pilih workspace aktif dulu di menu Workspace untuk melihat
+            divisi, anggota, dan undangan.
+          </p>
+        </div>
+      </div>
     );
-    setEditing(null);
-  };
-
-  const confirmDelete = () => {
-    if (!deleting) return;
-    setMemberList((prev) => prev.filter((u) => u.id !== deleting.id));
-    setDeleting(null);
-  };
-
-  const leaderName = (leaderId: string) =>
-    memberList.find((u) => u.id === leaderId)?.name ?? 'Belum ditentukan';
+  }
 
   return (
     <div className={stackClass}>
-      <div className={grid3Class}>
-        {divisions.map((d) => (
-          <div className={cardClass} key={d.id}>
-            <h3 className={`${sectionTitleClass} m-0`}>Divisi {d.name}</h3>
-            <p className={mutedClass}>Ketua: {leaderName(d.leaderId)}</p>
-            <p className={mutedClass}>{memberList.filter((u) => u.divisionId === d.id).length} anggota</p>
-          </div>
-        ))}
-      </div>
-
-      <div className={`${cardBaseClass} bg-white shadow-brutal p-0 overflow-hidden`}>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className={tableThClass}>Nama</th>
-              <th className={tableThClass}>Email</th>
-              <th className={tableThClass}>Role</th>
-              <th className={tableThClass}>Divisi</th>
-              <th className={tableThClass}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {memberList.map((u) => (
-              <tr key={u.id}>
-                <td className={tableTdClass}><strong>{u.name}</strong></td>
-                <td className={tableTdClass}>{u.email}</td>
-                <td className={tableTdClass}>
-                  <Chip className={u.role === 'ADMIN' ? 'bg-mk-red-soft' : u.role === 'MANAGER' ? 'bg-mk-yellow-soft' : u.role === 'DIVISION_LEADER' ? 'bg-mk-blue-soft' : ''}>
-                    {ROLE_LABELS[u.role]}
-                  </Chip>
-                </td>
-                <td className={tableTdClass}>{divisionName(u.divisionId)}</td>
-                <td className={tableTdClass}>
-                  <span className="flex gap-2 flex-wrap">
-                    <button type="button" className={btnBlueClass} onClick={() => openEdit(u)}>Edit</button>
-                    <button
-                      type="button"
-                      className={btnRedClass}
-                      disabled={u.id === CURRENT_USER_ID}
-                      title={u.id === CURRENT_USER_ID ? 'Akun yang sedang login tidak bisa dihapus' : undefined}
-                      onClick={() => setDeleting(u)}
-                    >
-                      Hapus
-                    </button>
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {memberList.length === 0 && (
-              <tr><td colSpan={5} className={`${tableTdClass} ${mutedClass}`}>Belum ada anggota.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {editing && (
-        <Modal title="Edit Anggota" onClose={() => setEditing(null)}>
-          <p className={mutedClass}>
-            {editing.name} · {editing.email}
-          </p>
-          <form onSubmit={submitEdit} className="flex flex-col gap-3 mt-3">
-            <label className={fieldClass}>
-              <span className={fieldLabelClass}>Role</span>
-              <select
-                className={inputClass}
-                value={editRole}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as RoleName)}
-              >
-                {(Object.keys(ROLE_LABELS) as RoleName[]).map((r) => (
-                  <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                ))}
-              </select>
-            </label>
-            <label className={fieldClass}>
-              <span className={fieldLabelClass}>Divisi</span>
-              <select
-                className={inputClass}
-                value={editDivisionId}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setEditDivisionId(e.target.value)}
-              >
-                {divisions.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </label>
-            <span className="flex gap-2 flex-wrap">
-              <button type="submit" className={btnYellowClass}>Simpan Perubahan</button>
-              <button type="button" className={btnClass} onClick={() => setEditing(null)}>Batal</button>
-            </span>
-          </form>
-        </Modal>
+      {notice && (
+        <p className={mutedClass} role="status">
+          {notice}
+        </p>
       )}
 
-      {deleting && (
-        <Modal title="Hapus Anggota" onClose={() => setDeleting(null)}>
-          <p>
-            Hapus <strong>{deleting.name}</strong> ({deleting.email}) dari organisasi? Tindakan ini tidak bisa
-            dibatalkan.
-          </p>
-          <span className="flex gap-2 flex-wrap mt-4">
-            <button type="button" className={btnRedClass} onClick={confirmDelete}>Ya, Hapus</button>
-            <button type="button" className={btnClass} onClick={() => setDeleting(null)}>Batal</button>
-          </span>
-        </Modal>
+      {loading && <p className={mutedClass}>Memuat data organisasi...</p>}
+
+      {error && (
+        <div className={cardClass}>
+          <p role="alert">{error}</p>
+          <button type="button" className={btnClass} onClick={reload}>
+            Coba lagi
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          <DivisionSection
+            workspaceId={activeWorkspace.id}
+            divisions={divisions}
+            members={members}
+            canManageDivisions={CAN_MANAGE_DIVISIONS.includes(role)}
+            onChanged={reload}
+            onNotice={setNotice}
+          />
+          <MemberSection
+            workspaceId={activeWorkspace.id}
+            members={members}
+            roles={roles}
+            currentUserId={currentUserId}
+            canManageMembers={CAN_MANAGE_MEMBERS.includes(role)}
+            onChanged={reload}
+            onNotice={setNotice}
+          />
+          <InvitationSection
+            workspaceId={activeWorkspace.id}
+            invitations={invitations}
+            roles={roles}
+            canInvite={CAN_INVITE.includes(role)}
+            onChanged={reload}
+            onNotice={setNotice}
+          />
+        </>
       )}
     </div>
   );

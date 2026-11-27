@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "tsx --test \"tests/**/*.test.ts\"",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/server.js",
     "prisma:migrate": "prisma migrate deploy",
     "postinstall": "prisma skills sync || exit 0",
     "contract:emit": "prisma contract emit",

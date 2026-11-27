@@ -14,6 +14,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * `uploads/` dan disajikan statis di `/uploads` seperti
  * sebelumnya — metadata + respons API tetap sama di kedua mode.
  *
+ * Bila `SUPABASE_URL` terisi tapi bukan URL http/https yang valid
+ * (mis. placeholder tanpa `https://`, atau key yang salah tempel
+ * di kolom URL), konfigurasi dianggap belum terisi dan file
+ * disimpan lokal, dengan peringatan di log — supaya salah isi
+ * `.env` tidak membuat upload lampiran gagal 500.
+ *
  * Hapus file selalu best-effort: kegagalan menghapus file fisik
  * tidak pernah menggagalkan request hapus lampiran.
  */
@@ -27,13 +33,62 @@ interface StorageConfig {
 }
 
 function getStorageConfig(): StorageConfig | null {
-  const url = process.env['SUPABASE_URL'];
-  const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
-  const bucket = process.env['SUPABASE_STORAGE_BUCKET'];
+  // Nilai .env yang diketik manual di Windows rawan kelebihan spasi
+  // di ujung (atau spasi di tengah nama bucket) — rapikan dulu.
+  const url = process.env['SUPABASE_URL']?.trim();
+  const serviceRoleKey = process.env['SUPABASE_SERVICE_ROLE_KEY']?.trim();
+  const bucket = process.env['SUPABASE_STORAGE_BUCKET']?.trim();
   if (!url || !serviceRoleKey || !bucket) {
     return null;
   }
-  return { url, serviceRoleKey, bucket };
+  // createClient() throw bila URL tidak valid — validasi dulu di
+  // sini supaya nilai .env yang salah tidak menggagalkan upload
+  // (kasus nyata: SUPABASE_URL terisi placeholder/typo).
+  let normalizedUrl: string;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('protokol bukan http/https');
+    }
+    normalizedUrl = parsed.href;
+  } catch {
+    globalThis.console.warn(
+      '[storage] SUPABASE_URL tidak valid, pakai penyimpanan lokal:',
+      url,
+    );
+    return null;
+  }
+  // SUPABASE_URL yang benar hanya Project URL polos
+  // (`https://<ref>.supabase.co`). Bila terlanjur ke-paste dengan
+  // tambahan path `/storage/v1`, klien Supabase akan membangun
+  // `/storage/storage/v1/...` dan server menolak path-nya — jadi
+  // buang akhiran itu (dan garis miring di ujung) sambil memberi
+  // peringatan, supaya URL-nya tetap bisa dipakai.
+  normalizedUrl = normalizedUrl.replace(/\/storage\/v1\/?$/, '');
+  normalizedUrl = normalizedUrl.replace(/\/+$/, '');
+  if (normalizedUrl !== url) {
+    globalThis.console.warn(
+      '[storage] SUPABASE_URL dirapikan (buang akhiran path):',
+      url,
+      '->',
+      normalizedUrl,
+    );
+  }
+  // Nama bucket Supabase harus huruf kecil/angka, diawali huruf
+  // atau angka, hanya boleh huruf kecil, angka, titik, `_`, `-`
+  // (maks 63 karakter). Nama bucket yang salah (huruf besar, spasi,
+  // garis miring, atau malah URL) membuat Supabase menolak request
+  // upload dengan "Invalid path specified in request URL" — jadi
+  // perlakukan sebagai belum terkonfigurasi dan pakai lokal saja,
+  // dengan peringatan di log.
+  if (!/^[a-z0-9][a-z0-9._-]{0,62}$/.test(bucket)) {
+    globalThis.console.warn(
+      '[storage] SUPABASE_STORAGE_BUCKET tidak valid, pakai penyimpanan lokal:',
+      bucket,
+    );
+    return null;
+  }
+  return { url: normalizedUrl, serviceRoleKey, bucket };
 }
 
 /** True bila Supabase Storage sudah dikonfigurasi (ketiga env terisi). */
@@ -89,6 +144,16 @@ export async function storeAttachmentFile(
       upsert: false,
     });
   if (error) {
+    // Catat bucket + path yang ditolak (bukan rahasia) supaya
+    // penyebabnya bisa dilihat di log terminal tanpa menebak-nebak.
+    globalThis.console.error(
+      '[storage] Upload ke Supabase ditolak. bucket:',
+      config.bucket,
+      'path:',
+      storagePath,
+      'pesan:',
+      error.message,
+    );
     throw new Error(`Gagal mengunggah file ke Supabase Storage: ${error.message}`);
   }
   const { data } = supabase.storage

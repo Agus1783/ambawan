@@ -1,8 +1,37 @@
-// Halaman Detail Task mockup: ubah status, subtask, lampiran,
-// timeline riwayat, dan komentar.
-import { useState } from 'react';
+// Halaman Detail Task (Tahap 2 langkah 5–7): status, subtask, delegasi,
+// hapus, lampiran, komentar, dan riwayat dari API untuk task yang
+// berasal dari API.
+//
+// - Ubah status (PUT /tasks/:id/status): semua role boleh; gagal dari
+//   server ditampilkan, bukan diubah diam-diam.
+// - Subtask dari API (GET /tasks/:id/subtasks) + buat subtask
+//   (POST /tasks dengan parent_task_id, project_id induk, dan
+//   workspace aktif). Deadline subtask opsional.
+// - Delegasi (POST /tasks/:id/delegate) ke satu user ATAU satu divisi;
+//   hanya OWNER/MANAGER/DIVISION_LEADER (sesuai seed backend).
+// - Hapus task (DELETE /tasks/:id, 204) dengan modal konfirmasi;
+//   subtask ikut terhapus di server (FK cascade).
+// - Lampiran (langkah 7, spec §16): daftar (GET /tasks/:id/attachments),
+//   upload (POST multipart field `file`, maks 10 MB, tipe dibatasi
+//   server), hapus (DELETE .../attachments/:attachmentId) — hapus
+//   hanya OWNER/MANAGER/DIVISION_LEADER (izin `attachment.delete`).
+//   File disimpan Supabase Storage bila dikonfigurasi, atau lokal
+//   `uploads/` bila tidak (backend `src/utils/storage.ts`);
+//   metadata + respons API sama di kedua mode.
+// - Komentar (langkah 7, spec §17): daftar (GET /tasks/:id/comments),
+//   tambah (POST {content}, maks 5000 karakter), hapus
+//   (DELETE .../comments/:commentId) — hapus oleh penulisnya sendiri
+//   atau pemegang izin `task.delete`.
+// - Riwayat (langkah 7, spec §15): timeline (GET /tasks/:id/history);
+//   dimuat ulang setelah aksi yang mencatat riwayat (ubah status,
+//   delegasi, upload/hapus lampiran, tambah/hapus komentar).
+// - Task mock (dari Dashboard/MyTasks/Delegation, belum ada di
+//   backend) tetap memakai perilaku lokal lama: status diubah lokal,
+//   subtask dari taskList, lampiran/komentar/riwayat dari mockData,
+//   tanpa tombol delegasi/hapus API.
+import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import type { Task, TaskStatus } from '../interfaces/types';
+import type { RoleName, Task, TaskStatus } from '../interfaces/types';
 import {
   PRIORITY_LABELS,
   STATUS_LABELS,
@@ -11,12 +40,24 @@ import {
   history,
 } from '../data/mockData';
 import { divisionName, formatFileSize, projectName, userName } from '../utils/helpers';
+import api, {
+  pesanErrorApi,
+  type ApiSubtask,
+  type ApiTaskAttachment,
+  type ApiTaskComment,
+  type ApiTaskHistory,
+  type DelegateTaskInput,
+  type Division,
+  type WorkspaceMember,
+} from '../utils/api';
 import { Chip, StatusChip } from '../components/ui/Chip';
+import { Modal } from '../components/ui/Modal';
 import {
   btnBlueClass,
   btnClass,
   btnYellowClass,
   cardClass,
+  fieldClass,
   fieldLabelClass,
   grid2Class,
   inputClass,
@@ -29,57 +70,657 @@ import {
   timelineItemClass,
 } from '../components/ui/UiClasses';
 
+const CAN_DELETE_TASK: RoleName[] = [
+  'ADMIN',
+  'OWNER',
+  'MANAGER',
+  'DIVISION_LEADER',
+];
+const CAN_DELEGATE_TASK: RoleName[] = [
+  'ADMIN',
+  'OWNER',
+  'MANAGER',
+  'DIVISION_LEADER',
+];
+// Hapus lampiran: izin `attachment.delete` (seed backend) hanya
+// OWNER/MANAGER/DIVISION_LEADER; MEMBER boleh upload tapi tidak hapus.
+const CAN_DELETE_ATTACHMENT: RoleName[] = [
+  'ADMIN',
+  'OWNER',
+  'MANAGER',
+  'DIVISION_LEADER',
+];
+
+/** Batas upload server (backend `src/middlewares/upload.ts`): 10 MB. */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** Tipe file yang diizinkan server (cermin `upload.ts`). */
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+
+/** Label aksi riwayat (spec §15.1 + §19: COMMENT_ADDED/COMMENT_DELETED). */
+const HISTORY_ACTION_LABELS: Record<string, string> = {
+  CREATED: 'Dibuat',
+  UPDATED: 'Diperbarui',
+  DELEGATED: 'Didelegasikan',
+  STATUS_CHANGED: 'Status diubah',
+  ATTACHMENT_ADDED: 'Lampiran ditambahkan',
+  ATTACHMENT_DELETED: 'Lampiran dihapus',
+  COMMENT_ADDED: 'Komentar ditambahkan',
+  COMMENT_DELETED: 'Komentar dihapus',
+};
+
+/** Format ISO `2026-09-27T10:00:00Z` jadi tanggal-waktu lokal singkat. */
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function TaskDetailPage({
   task,
   tasks,
+  workspaceId,
+  role,
+  isApiTask,
+  currentUserId,
   onBack,
   onUpdateStatus,
+  onDeleteTask,
+  onDelegateTask,
   comments,
   onAddComment,
 }: {
   task: Task;
   tasks: Task[];
+  workspaceId: string | null;
+  role: RoleName;
+  isApiTask: boolean;
+  currentUserId: string;
   onBack: () => void;
-  onUpdateStatus: (id: string, status: TaskStatus) => void;
+  onUpdateStatus: (id: string, status: TaskStatus) => Promise<void>;
+  onDeleteTask: (id: string) => Promise<void>;
+  onDelegateTask: (id: string, input: DelegateTaskInput) => Promise<void>;
   comments: string[];
   onAddComment: (text: string) => void;
 }) {
   const [comment, setComment] = useState('');
   const [attachmentList, setAttachmentList] = useState(attachments);
-  const subtasks = tasks.filter((t) => t.parentTaskId === task.id);
-  const taskHistory = history.filter((h) => h.taskId === task.id);
-  const taskAttachments = attachmentList.filter((a) => a.taskId === task.id);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
-  const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setAttachmentList((prev) => [
-      ...prev,
-      ...files.map((f, i) => ({
-        id: `att_${Date.now()}_${i}`,
-        taskId: task.id,
-        fileName: f.name,
-        fileType: f.type || 'unknown',
-        fileSize: f.size,
-        uploadedBy: CURRENT_USER_ID,
-      })),
-    ]);
-    e.target.value = '';
+  // Subtask dari API (task API) atau dari taskList (task mock).
+  const mockSubtasks = tasks.filter((t) => t.parentTaskId === task.id);
+  const [subtasks, setSubtasks] = useState<ApiSubtask[]>([]);
+  // Task yang subtask-nya sudah dimuat; loading diturunkan dari sini
+  // (pola TasksPage) supaya effect tidak memanggil setState sinkron.
+  const [subtasksLoadedFor, setSubtasksLoadedFor] = useState<string | null>(
+    null,
+  );
+  const subtasksLoading = isApiTask && subtasksLoadedFor !== task.id;
+  const [subtasksError, setSubtasksError] = useState<string | null>(null);
+  const [subtaskTitle, setSubtaskTitle] = useState('');
+  const [subtaskPriority, setSubtaskPriority] = useState<Task['priority']>('P3');
+  const [subtaskDeadline, setSubtaskDeadline] = useState('');
+  const [subtaskBusy, setSubtaskBusy] = useState(false);
+  const [subtaskError, setSubtaskError] = useState<string | null>(null);
+
+  // Lampiran dari API (task API) atau dari mockData (task mock).
+  const [apiAttachments, setApiAttachments] = useState<ApiTaskAttachment[]>(
+    [],
+  );
+  const [attachmentsLoadedFor, setAttachmentsLoadedFor] = useState<
+    string | null
+  >(null);
+  const attachmentsLoading = isApiTask && attachmentsLoadedFor !== task.id;
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(
+    null,
+  );
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
+    string | null
+  >(null);
+
+  // Komentar dari API (task API) atau dari props App (task mock).
+  const [apiComments, setApiComments] = useState<ApiTaskComment[]>([]);
+  const [commentsLoadedFor, setCommentsLoadedFor] = useState<string | null>(
+    null,
+  );
+  const commentsLoading = isApiTask && commentsLoadedFor !== task.id;
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null,
+  );
+
+  // Riwayat dari API (task API) atau dari mockData (task mock).
+  const [apiHistory, setApiHistory] = useState<ApiTaskHistory[]>([]);
+  const [historyLoadedFor, setHistoryLoadedFor] = useState<string | null>(
+    null,
+  );
+  const historyLoading = isApiTask && historyLoadedFor !== task.id;
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // Delegasi (task API saja): pilihan user/divisi dari API.
+  const [delegateKind, setDelegateKind] = useState<'user' | 'division'>(
+    'user',
+  );
+  const [delegateUserId, setDelegateUserId] = useState('');
+  const [delegateDivisionId, setDelegateDivisionId] = useState('');
+  const [delegateDivisions, setDelegateDivisions] = useState<Division[]>([]);
+  const [delegateMembers, setDelegateMembers] = useState<WorkspaceMember[]>(
+    [],
+  );
+  // Task yang pilihan delegasinya sudah dimuat; loading diturunkan
+  // dari sini (pola subtask di atas) supaya effect tidak memanggil
+  // setState sinkron.
+  const [delegateLoadedFor, setDelegateLoadedFor] = useState<string | null>(
+    null,
+  );
+  const delegateOptionsLoading =
+    isApiTask && delegateLoadedFor !== task.id;
+  const [delegateOptionsError, setDelegateOptionsError] = useState<
+    string | null
+  >(null);
+  const [delegateBusy, setDelegateBusy] = useState(false);
+  const [delegateError, setDelegateError] = useState<string | null>(null);
+
+  // Hapus task (task API saja).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const fetchSubtasks = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listSubtasks(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setSubtasks(items);
+        setSubtasksError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setSubtasksError(pesanErrorApi(err));
+        setSubtasks([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setSubtasksLoadedFor(taskId);
+      });
   };
 
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchSubtasks(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
 
-  const submitComment = (e: FormEvent) => {
+  const fetchAttachments = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listAttachments(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiAttachments(items);
+        setAttachmentsError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setAttachmentsError(pesanErrorApi(err));
+        setApiAttachments([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setAttachmentsLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchAttachments(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchComments = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listComments(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiComments(items);
+        setCommentsError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setCommentsError(pesanErrorApi(err));
+        setApiComments([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setCommentsLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchComments(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchHistory = (taskId: string, isCancelled?: () => boolean) => {
+    return api
+      .listTaskHistory(taskId)
+      .then((items) => {
+        if (isCancelled?.()) return;
+        setApiHistory(items);
+        setHistoryError(null);
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setHistoryError(pesanErrorApi(err));
+        setApiHistory([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setHistoryLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask) {
+      return;
+    }
+    let cancelled = false;
+    void fetchHistory(task.id, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask]);
+
+  const fetchDelegateOptions = (
+    taskId: string,
+    wsId: string,
+    isCancelled?: () => boolean,
+  ) => {
+    return Promise.all([
+      api.listDivisions(wsId),
+      api.listWorkspaceMembers(wsId),
+    ])
+      .then(([apiDivisions, apiMembers]) => {
+        if (isCancelled?.()) return;
+        setDelegateDivisions(apiDivisions);
+        setDelegateMembers(apiMembers);
+        setDelegateOptionsError(null);
+        // Pilihan awal: anggota/divisi pertama dari API.
+        setDelegateUserId((prev) => prev || apiMembers[0]?.id || '');
+        setDelegateDivisionId(
+          (prev) => prev || apiDivisions[0]?.id || '',
+        );
+      })
+      .catch((err: unknown) => {
+        if (isCancelled?.()) return;
+        setDelegateOptionsError(pesanErrorApi(err));
+        setDelegateDivisions([]);
+        setDelegateMembers([]);
+      })
+      .finally(() => {
+        if (!isCancelled?.()) setDelegateLoadedFor(taskId);
+      });
+  };
+
+  useEffect(() => {
+    if (!isApiTask || !workspaceId) {
+      return;
+    }
+    let cancelled = false;
+    void fetchDelegateOptions(task.id, workspaceId, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id, isApiTask, workspaceId]);
+
+  // Nama divisi/penanggung jawab: task API memakai daftar dari API
+  // (id mock tidak cocok); task mock tetap memakai helper mock.
+  const shownDivisionName = isApiTask
+    ? task.divisionId
+      ? (delegateDivisions.find((d) => d.id === task.divisionId)?.name ??
+        (delegateOptionsLoading ? 'Memuat...' : task.divisionId))
+      : '—'
+    : divisionName(task.divisionId);
+  const shownAssigneeName = isApiTask
+    ? task.assigneeId
+      ? (delegateMembers.find((m) => m.id === task.assigneeId)?.name ??
+        (delegateOptionsLoading ? 'Memuat...' : task.assigneeId))
+      : 'Belum ditentukan'
+    : userName(task.assigneeId);
+
+  const subtasksToShow: { id: string; title: string; status: TaskStatus; assigneeName: string }[] =
+    isApiTask
+      ? subtasks.map((s) => ({
+          id: s.id,
+          title: s.title,
+          status: s.status,
+          assigneeName: s.assignee?.name ?? 'Belum ditentukan',
+        }))
+      : mockSubtasks.map((s) => ({
+          id: s.id,
+          title: s.title,
+          status: s.status,
+          assigneeName: userName(s.assigneeId),
+        }));
+
+  // Lampiran: bentuk seragam untuk render (API membawa fileUrl,
+  // mock tidak; fileSize API bisa null).
+  const attachmentsToShow: {
+    id: string;
+    fileName: string;
+    fileSize: number | null;
+    fileUrl: string | null;
+  }[] = isApiTask
+    ? apiAttachments.map((a) => ({
+        id: a.id,
+        fileName: a.fileName,
+        fileSize: a.fileSize,
+        fileUrl: a.fileUrl,
+      }))
+    : attachmentList
+        .filter((a) => a.taskId === task.id)
+        .map((a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+          fileUrl: null,
+        }));
+
+  // Riwayat: bentuk seragam untuk render (API membawa user
+  // bersarang + createdAt ISO; mock memakai userId + string lokal).
+  const historyToShow: {
+    id: string;
+    userName: string;
+    actionLabel: string;
+    oldStatus: string | null;
+    newStatus: string | null;
+    description: string | null;
+    createdAt: string;
+  }[] = isApiTask
+    ? apiHistory.map((h) => ({
+        id: h.id,
+        userName: h.user?.name ?? '—',
+        actionLabel: HISTORY_ACTION_LABELS[h.action] ?? h.action,
+        oldStatus: h.oldStatus,
+        newStatus: h.newStatus,
+        description: h.description,
+        createdAt: formatDateTime(h.createdAt),
+      }))
+    : history
+        .filter((h) => h.taskId === task.id)
+        .map((h) => ({
+          id: h.id,
+          userName: userName(h.userId),
+          actionLabel: HISTORY_ACTION_LABELS[h.action] ?? h.action,
+          oldStatus: h.oldStatus,
+          newStatus: h.newStatus,
+          description: h.description,
+          createdAt: h.createdAt,
+        }));
+
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    // Task mock: perilaku lokal lama (tanpa server).
+    if (!isApiTask) {
+      setAttachmentList((prev) => [
+        ...prev,
+        ...files.map((f, i) => ({
+          id: `att_${Date.now()}_${i}`,
+          taskId: task.id,
+          fileName: f.name,
+          fileType: f.type || 'unknown',
+          fileSize: f.size,
+          uploadedBy: CURRENT_USER_ID,
+        })),
+      ]);
+      return;
+    }
+    // Validasi client (cermin server): ukuran + tipe file.
+    const tooLarge = files.find((f) => f.size > MAX_FILE_SIZE);
+    if (tooLarge) {
+      setUploadError(
+        `File "${tooLarge.name}" terlalu besar (maksimal 10 MB).`,
+      );
+      return;
+    }
+    const unsupported = files.find(
+      (f) => f.type && !ALLOWED_MIME_TYPES.has(f.type),
+    );
+    if (unsupported) {
+      setUploadError(
+        `Tipe file "${unsupported.name}" tidak didukung. Format yang diizinkan: gambar, PDF, dokumen, spreadsheet, teks, atau ZIP.`,
+      );
+      return;
+    }
+    if (uploadBusy) return;
+    setUploadBusy(true);
+    setUploadError(null);
+    try {
+      for (const file of files) {
+        await api.uploadAttachment(task.id, file);
+      }
+      setNotice(
+        files.length === 1
+          ? 'Lampiran diupload.'
+          : `${files.length} lampiran diupload.`,
+      );
+      // Muat ulang daftar lampiran + riwayat (ATTACHMENT_ADDED).
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+      void fetchHistory(task.id);
+    } catch (err) {
+      setUploadError(pesanErrorApi(err));
+      // Sebagian file mungkin sempat terupload; muat ulang daftar.
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (deletingAttachmentId) return;
+    setDeletingAttachmentId(attachmentId);
+    setUploadError(null);
+    try {
+      await api.deleteAttachment(task.id, attachmentId);
+      setNotice('Lampiran dihapus.');
+      // Muat ulang daftar lampiran + riwayat (ATTACHMENT_DELETED).
+      setAttachmentsLoadedFor(null);
+      void fetchAttachments(task.id);
+      void fetchHistory(task.id);
+    } catch (err) {
+      setUploadError(pesanErrorApi(err));
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  const submitComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    onAddComment(comment.trim());
-    setComment('');
+    // Task mock: perilaku lokal lama (disimpan di App).
+    if (!isApiTask) {
+      onAddComment(comment.trim());
+      setComment('');
+      return;
+    }
+    if (commentBusy) return;
+    setCommentBusy(true);
+    setCommentError(null);
+    try {
+      const created = await api.createComment(task.id, comment.trim());
+      setApiComments((prev) => [...prev, created]);
+      setComment('');
+      setNotice('Komentar ditambahkan.');
+      // Riwayat ikut mencatat COMMENT_ADDED.
+      void fetchHistory(task.id);
+    } catch (err) {
+      setCommentError(pesanErrorApi(err));
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (deletingCommentId) return;
+    setDeletingCommentId(commentId);
+    setCommentError(null);
+    try {
+      await api.deleteComment(task.id, commentId);
+      setApiComments((prev) => prev.filter((c) => c.id !== commentId));
+      setNotice('Komentar dihapus.');
+      // Riwayat ikut mencatat COMMENT_DELETED.
+      void fetchHistory(task.id);
+    } catch (err) {
+      setCommentError(pesanErrorApi(err));
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
+  const changeStatus = async (status: TaskStatus) => {
+    if (statusBusy || status === task.status) return;
+    setStatusBusy(true);
+    setStatusError(null);
+    try {
+      await onUpdateStatus(task.id, status);
+      setNotice(`Status diubah ke ${STATUS_LABELS[status]}.`);
+      // Riwayat ikut mencatat STATUS_CHANGED (task API saja).
+      if (isApiTask) void fetchHistory(task.id);
+    } catch (err) {
+      setStatusError(pesanErrorApi(err));
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+
+  const submitSubtask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!subtaskTitle.trim() || !workspaceId || subtaskBusy) return;
+    setSubtaskBusy(true);
+    setSubtaskError(null);
+    try {
+      await api.createTask({
+        workspace_id: workspaceId,
+        project_id: task.projectId,
+        parent_task_id: task.id,
+        title: subtaskTitle.trim(),
+        priority: subtaskPriority,
+        deadline: subtaskDeadline
+          ? `${subtaskDeadline}T00:00:00.000Z`
+          : undefined,
+      });
+      setSubtaskTitle('');
+      setSubtaskDeadline('');
+      setSubtaskPriority('P3');
+      setNotice('Subtask dibuat.');
+      // Muat ulang daftar subtask dari API.
+      setSubtasksLoadedFor(null);
+      void fetchSubtasks(task.id);
+    } catch (err) {
+      setSubtaskError(pesanErrorApi(err));
+    } finally {
+      setSubtaskBusy(false);
+    }
+  };
+
+  const submitDelegate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (delegateBusy) return;
+    const input: DelegateTaskInput =
+      delegateKind === 'user'
+        ? { assignee_id: delegateUserId }
+        : { division_id: delegateDivisionId };
+    if (!input.assignee_id && !input.division_id) return;
+    setDelegateBusy(true);
+    setDelegateError(null);
+    try {
+      await onDelegateTask(task.id, input);
+      setNotice('Task didelegasikan.');
+      // Riwayat ikut mencatat DELEGATED.
+      void fetchHistory(task.id);
+    } catch (err) {
+      setDelegateError(pesanErrorApi(err));
+    } finally {
+      setDelegateBusy(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await onDeleteTask(task.id);
+      setConfirmingDelete(false);
+    } catch (err) {
+      setDeleteError(pesanErrorApi(err));
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
     <div className={stackClass}>
       <div className={rowClass}>
         <button type="button" className={btnClass} onClick={onBack}>← Kembali ke Daftar</button>
+        {isApiTask && CAN_DELETE_TASK.includes(role) && (
+          <button
+            type="button"
+            className={btnClass}
+            onClick={() => {
+              setDeleteError(null);
+              setConfirmingDelete(true);
+            }}
+          >
+            Hapus Task
+          </button>
+        )}
       </div>
+
+      {notice && (
+        <p className={mutedClass} role="status">
+          {notice}
+        </p>
+      )}
 
       <div className={cardClass}>
         <div className={`${rowClass} justify-between`}>
@@ -93,8 +734,8 @@ export function TaskDetailPage({
         </div>
         <p>{task.description}</p>
         <p className={mutedClass}>
-          Project: {projectName(task.projectId)} · Divisi: {divisionName(task.divisionId)} ·
-          Penanggung jawab: {userName(task.assigneeId)} · Deadline: {task.deadline}
+          Project: {projectName(task.projectId)} · Divisi: {shownDivisionName} ·
+          Penanggung jawab: {shownAssigneeName} · Deadline: {task.deadline || '—'}
         </p>
         <div className={rowClass}>
           <span className={fieldLabelClass}>Ubah Status:</span>
@@ -103,76 +744,310 @@ export function TaskDetailPage({
               key={s}
               type="button"
               className={task.status === s ? btnYellowClass : btnClass}
-              onClick={() => onUpdateStatus(task.id, s)}
+              disabled={statusBusy}
+              onClick={() => void changeStatus(s)}
             >
               {STATUS_LABELS[s]}
             </button>
           ))}
         </div>
+        {statusError && <p role="alert">{statusError}</p>}
       </div>
 
       <div className={grid2Class}>
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Subtugas</h3>
-          <p className={sectionLabelClass}>{subtasks.length} subtugas</p>
-          {subtasks.length === 0 && <p className={mutedClass}>Tidak ada subtugas.</p>}
-          {subtasks.map((s) => (
+          <p className={sectionLabelClass}>{subtasksToShow.length} subtugas</p>
+          {subtasksLoading && <p className={mutedClass}>Memuat subtugas...</p>}
+          {subtasksError && <p role="alert">{subtasksError}</p>}
+          {!subtasksLoading && subtasksToShow.length === 0 && (
+            <p className={mutedClass}>Tidak ada subtugas.</p>
+          )}
+          {subtasksToShow.map((s) => (
             <div key={s.id} className={`${rowClass} justify-between mb-2`}>
               <span>{s.title}</span>
-              <StatusChip status={s.status} />
+              <span className={rowClass}>
+                <span className={mutedClass}>{s.assigneeName}</span>
+                <StatusChip status={s.status} />
+              </span>
             </div>
           ))}
+          {isApiTask && workspaceId && (
+            <form onSubmit={submitSubtask} className="flex flex-col gap-2 mt-3">
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>Judul Subtugas</span>
+                <input
+                  className={inputClass}
+                  value={subtaskTitle}
+                  onChange={(e) => setSubtaskTitle(e.target.value)}
+                  placeholder="Contoh: Membuat skema tabel user"
+                />
+              </label>
+              <span className={rowClass}>
+                <label className={fieldClass}>
+                  <span className={fieldLabelClass}>Prioritas</span>
+                  <select
+                    className={inputClass}
+                    value={subtaskPriority}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                      setSubtaskPriority(e.target.value as Task['priority'])
+                    }
+                  >
+                    <option value="P1">P1 - Mendesak</option>
+                    <option value="P2">P2 - Penting</option>
+                    <option value="P3">P3 - Normal</option>
+                  </select>
+                </label>
+                <label className={fieldClass}>
+                  <span className={fieldLabelClass}>Deadline (opsional)</span>
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={subtaskDeadline}
+                    onChange={(e) => setSubtaskDeadline(e.target.value)}
+                  />
+                </label>
+              </span>
+              {subtaskError && <p role="alert">{subtaskError}</p>}
+              <span>
+                <button
+                  type="submit"
+                  className={btnYellowClass}
+                  disabled={subtaskBusy || !subtaskTitle.trim()}
+                >
+                  {subtaskBusy ? 'Menyimpan...' : '+ Tambah Subtugas'}
+                </button>
+              </span>
+            </form>
+          )}
         </div>
 
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Lampiran</h3>
-          <p className={sectionLabelClass}>Disimpan di Supabase Storage (mock)</p>
-          {taskAttachments.length === 0 && <p className={mutedClass}>Belum ada lampiran.</p>}
-          {taskAttachments.map((a) => (
+          {isApiTask ? (
+            <p className={sectionLabelClass}>
+              Maksimal 10 MB per file · gambar, PDF, dokumen, spreadsheet, teks, ZIP
+            </p>
+          ) : (
+            <p className={sectionLabelClass}>Disimpan di Supabase Storage (mock)</p>
+          )}
+          {attachmentsLoading && <p className={mutedClass}>Memuat lampiran...</p>}
+          {attachmentsError && <p role="alert">{attachmentsError}</p>}
+          {!attachmentsLoading && attachmentsToShow.length === 0 && (
+            <p className={mutedClass}>Belum ada lampiran.</p>
+          )}
+          {attachmentsToShow.map((a) => (
             <div key={a.id} className={`${rowClass} justify-between mb-2`}>
-              <span>{a.fileName}</span>
-              <span className={mutedClass}>{formatFileSize(a.fileSize)}</span>
+              {a.fileUrl ? (
+                <a href={a.fileUrl} target="_blank" rel="noreferrer">
+                  {a.fileName}
+                </a>
+              ) : (
+                <span>{a.fileName}</span>
+              )}
+              <span className={rowClass}>
+                <span className={mutedClass}>
+                  {a.fileSize === null ? '—' : formatFileSize(a.fileSize)}
+                </span>
+                {isApiTask && CAN_DELETE_ATTACHMENT.includes(role) && (
+                  <button
+                    type="button"
+                    className={btnClass}
+                    disabled={deletingAttachmentId === a.id}
+                    onClick={() => void handleDeleteAttachment(a.id)}
+                  >
+                    {deletingAttachmentId === a.id ? 'Menghapus...' : 'Hapus'}
+                  </button>
+                )}
+              </span>
             </div>
           ))}
+          {uploadError && <p role="alert">{uploadError}</p>}
           <label className={`${btnBlueClass} mt-2 cursor-pointer`}>
-            + Upload File
-            <input type="file" multiple hidden onChange={handleUpload} />
+            {uploadBusy ? 'Mengupload...' : '+ Upload File'}
+            <input
+              type="file"
+              multiple
+              hidden
+              disabled={uploadBusy}
+              onChange={(e) => void handleUpload(e)}
+            />
           </label>
 
         </div>
       </div>
 
+      {isApiTask && CAN_DELEGATE_TASK.includes(role) && (
+        <div className={cardClass}>
+          <h3 className={sectionTitleClass}>Delegasikan Tugas</h3>
+          <p className={sectionLabelClass}>
+            Delegasi ke satu user atau satu divisi dari workspace aktif.
+          </p>
+          {delegateOptionsLoading && (
+            <p className={mutedClass}>Memuat pilihan delegasi...</p>
+          )}
+          {delegateOptionsError && <p role="alert">{delegateOptionsError}</p>}
+          <form onSubmit={submitDelegate} className={rowClass}>
+            <label className={fieldClass}>
+              <span className={fieldLabelClass}>Delegasikan Ke</span>
+              <select
+                className={inputClass}
+                value={delegateKind}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                  setDelegateKind(e.target.value as 'user' | 'division')
+                }
+              >
+                <option value="user">Pengguna</option>
+                <option value="division">Divisi</option>
+              </select>
+            </label>
+            {delegateKind === 'user' ? (
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>Pengguna</span>
+                <select
+                  className={inputClass}
+                  value={delegateUserId}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setDelegateUserId(e.target.value)
+                  }
+                >
+                  {delegateMembers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className={fieldClass}>
+                <span className={fieldLabelClass}>Divisi</span>
+                <select
+                  className={inputClass}
+                  value={delegateDivisionId}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setDelegateDivisionId(e.target.value)
+                  }
+                >
+                  {delegateDivisions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="submit"
+              className={`${btnYellowClass} self-end`}
+              disabled={
+                delegateBusy ||
+                (delegateKind === 'user' && !delegateUserId) ||
+                (delegateKind === 'division' && !delegateDivisionId)
+              }
+            >
+              {delegateBusy ? 'Mendelegasikan...' : 'Delegasikan'}
+            </button>
+          </form>
+          {delegateError && <p role="alert">{delegateError}</p>}
+        </div>
+      )}
+
       <div className={grid2Class}>
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Riwayat Tugas</h3>
           <p className={sectionLabelClass}>Timeline aktivitas</p>
+          {historyLoading && <p className={mutedClass}>Memuat riwayat...</p>}
+          {historyError && <p role="alert">{historyError}</p>}
           <div className="flex flex-col">
-            {taskHistory.map((h) => (
+            {historyToShow.map((h) => (
               <div className={timelineItemClass} key={h.id}>
                 <span className={timelineDateClass}>[{h.createdAt}]</span>
                 <span>
-                  <strong>{userName(h.userId)}</strong> — {h.action}
+                  <strong>{h.userName}</strong> — {h.actionLabel}
                   {h.oldStatus && h.newStatus ? ` (${STATUS_LABELS[h.oldStatus as TaskStatus]} → ${STATUS_LABELS[h.newStatus as TaskStatus]})` : ''}
                   {h.description ? ` — ${h.description}` : ''}
                 </span>
               </div>
             ))}
-            {taskHistory.length === 0 && <p className={mutedClass}>Belum ada riwayat.</p>}
+            {!historyLoading && historyToShow.length === 0 && (
+              <p className={mutedClass}>Belum ada riwayat.</p>
+            )}
           </div>
         </div>
 
         <div className={cardClass}>
           <h3 className={sectionTitleClass}>Komentar</h3>
-          <p className={sectionLabelClass}>{comments.length} komentar</p>
-          {comments.map((c, i) => (
-            <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2">{c}</p>
-          ))}
+          <p className={sectionLabelClass}>
+            {isApiTask ? apiComments.length : comments.length} komentar
+          </p>
+          {commentsLoading && <p className={mutedClass}>Memuat komentar...</p>}
+          {commentsError && <p role="alert">{commentsError}</p>}
+          {isApiTask
+            ? apiComments.map((c) => (
+                <div
+                  key={c.id}
+                  className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2 mb-2"
+                >
+                  <p className={mutedClass}>
+                    {c.user?.name ?? '—'} · {formatDateTime(c.created_at)}
+                  </p>
+                  <p>{c.content}</p>
+                  {(c.user?.id === currentUserId ||
+                    CAN_DELETE_TASK.includes(role)) && (
+                    <button
+                      type="button"
+                      className={btnClass}
+                      disabled={deletingCommentId === c.id}
+                      onClick={() => void handleDeleteComment(c.id)}
+                    >
+                      {deletingCommentId === c.id ? 'Menghapus...' : 'Hapus'}
+                    </button>
+                  )}
+                </div>
+              ))
+            : comments.map((c, i) => (
+                <p key={i} className="border-b-2 border-dashed border-[#e5e5e0] dark:border-[#404040] pb-2">{c}</p>
+              ))}
+          {commentError && <p role="alert">{commentError}</p>}
           <form onSubmit={submitComment} className="flex flex-col gap-2 mt-3">
             <textarea className={inputClass} value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Tulis komentar..." />
-            <button type="submit" className={btnYellowClass}>Kirim Komentar</button>
+            <button
+              type="submit"
+              className={btnYellowClass}
+              disabled={commentBusy || !comment.trim()}
+            >
+              {commentBusy ? 'Mengirim...' : 'Kirim Komentar'}
+            </button>
           </form>
         </div>
       </div>
+
+      {confirmingDelete && (
+        <Modal title="Hapus Task" onClose={() => setConfirmingDelete(false)}>
+          <p>
+            Hapus task <strong>{task.title}</strong>? Semua subtask di
+            bawahnya ikut terhapus.
+          </p>
+          {deleteError && <p role="alert">{deleteError}</p>}
+          <span className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              className={btnYellowClass}
+              disabled={deleteBusy}
+              onClick={() => void confirmDelete()}
+            >
+              {deleteBusy ? 'Menghapus...' : 'Ya, Hapus'}
+            </button>
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Batal
+            </button>
+          </span>
+        </Modal>
+      )}
     </div>
   );
 }
