@@ -305,7 +305,7 @@ function App() {
             onNavigate={navigate}
           />
 
-          <main className="flex-1 px-6 py-5 pb-10 min-w-0">
+          <main className="flex flex-1 flex-col px-6 py-5 pb-10 min-w-0">
             <Topbar
               page={page}
               theme={theme}
