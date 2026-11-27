@@ -75,3 +75,20 @@ export async function hasPermissionAnywhere(
   ).all();
   return rows.some((row) => row.permission === permission);
 }
+
+/**
+ * Apakah user mengikuti minimal satu workspace (sebagai anggota
+ * apa pun). Dipakai POST /industries: user yang belum punya
+ * workspace sama sekali sedang membuat workspace pertamanya dan
+ * belum bisa memiliki izin workspace apa pun — izin
+ * `workspace.manage_industries` baru didapat setelah ia menjadi
+ * Owner workspace tersebut.
+ */
+export async function hasAnyWorkspace(userId: string): Promise<boolean> {
+  const memberships = await db.orm.public.WorkspaceMemberships.where((m) =>
+    m.userId.eq(varchar<26>(userId)),
+  )
+    .limit(1)
+    .all();
+  return memberships.length > 0;
+}
