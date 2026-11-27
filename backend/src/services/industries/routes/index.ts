@@ -13,7 +13,9 @@ router.use(authenticateToken);
 router.get('/', IndustryController.list);
 
 // POST /api/v1/industries — izin workspace.manage_industries di salah
-// satu workspace yang diikuti (dicek service, spec §9.2).
+// satu workspace yang diikuti (dicek service, spec §9.2), kecuali
+// pemanggil yang belum mengikuti workspace apa pun (alur workspace
+// pertama — ia belum bisa memiliki izin workspace apa pun).
 router.post('/', validate(CreateIndustrySchema), IndustryController.create);
 
 // GET /api/v1/industries/:id/project-suggestions — semua user.

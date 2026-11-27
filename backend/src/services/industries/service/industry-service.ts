@@ -5,7 +5,7 @@ import {
   NotFoundError,
 } from '../../../exceptions/index';
 import { buildPaginationMeta, offsetOf } from '../../../utils/pagination';
-import { hasPermissionAnywhere } from '../../../utils/permissions';
+import { hasAnyWorkspace, hasPermissionAnywhere } from '../../../utils/permissions';
 import {
   CACHE_TTL,
   getOrSet,
@@ -58,11 +58,17 @@ export const IndustryService = {
   async createIndustry(userId: string, input: CreateIndustryInput) {
     // Izin dicek terhadap SALAH SATU workspace yang diikuti pemanggil
     // (spec §9.2: industri bersifat global, tidak terikat satu workspace).
+    // Pengecualian: pemanggil yang belum mengikuti workspace apa pun
+    // sedang membuat workspace pertamanya — ia belum BISA memiliki
+    // izin workspace apa pun (izin baru didapat setelah menjadi
+    // Owner), jadi pembuatan bidang usaha diizinkan di sini.
+    // Sebaliknya, pemanggil yang sudah mengikuti workspace tapi
+    // rolenya tidak punya izin ini tetap ditolak.
     const allowed = await hasPermissionAnywhere(
       userId,
       'workspace.manage_industries',
     );
-    if (!allowed) {
+    if (!allowed && (await hasAnyWorkspace(userId))) {
       throw new AuthorizationError('Tidak memiliki permission', 'FORBIDDEN');
     }
 
