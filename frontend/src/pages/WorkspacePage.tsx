@@ -180,7 +180,7 @@ export function WorkspacePage({
   };
 
   return (
-    <div className={stackClass}>
+    <div className={`${stackClass} flex-1 justify-center`}>
       <section>
         <h2 className={`${sectionTitleClass} text-center`}>Workspace Saya</h2>
         {workspaces.length === 0 ? (
