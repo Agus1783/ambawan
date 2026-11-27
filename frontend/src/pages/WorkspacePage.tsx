@@ -3,7 +3,6 @@ import type { ChangeEvent, FormEvent } from 'react';
 import api, {
   pesanErrorApi,
   type Industry,
-  type ProjectSuggestion,
   type Workspace,
 } from '../utils/api';
 import { labelRoleApi } from '../utils/workspace';
@@ -15,10 +14,8 @@ import {
   cardClass,
   fieldClass,
   fieldLabelClass,
-  grid2Class,
   inputClass,
   mutedClass,
-  sectionLabelClass,
   sectionTitleClass,
   stackClass,
 } from '../components/ui/UiClasses';
@@ -32,12 +29,12 @@ import {
  *   per akun — jadi card BUAT WORKSPACE hanya muncul bila user belum
  *   memiliki workspace, dibuka lewat tombol "+ Buat Workspace", dan
  *   hilang lagi setelah workspace berhasil dibuat (sama seperti form
- *   Tambah Tugas). Saran proyek di bawahnya ikut tampil hanya saat
- *   form pembuatan sedang terbuka.
+ *   Tambah Tugas).
  * - Bidang usaha baru bisa ditambahkan inline (POST /industries).
- * - Saran proyek sistem untuk bidang usaha yang dipilih
- *   (GET /industries/:id/project-suggestions) — dipakai saat membuat
- *   proyek (langkah 3).
+ *   Memilih "Lainnya" di dropdown otomatis membuka form bidang
+ *   usaha baru di bawahnya; bidang usaha yang baru dibuat dipakai
+ *   untuk workspace ini tapi TIDAK ditambahkan ke pilihan dropdown
+ *   (dropdown hanya berisi bidang usaha sistem).
  */
 export function WorkspacePage({
   workspaces,
@@ -67,15 +64,19 @@ export function WorkspacePage({
   const [creatingIndustry, setCreatingIndustry] = useState(false);
   const [industryError, setIndustryError] = useState<string | null>(null);
 
-  const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
-  // Industri yang menjadi asal daftar saran saat ini; dipakai untuk
-  // menurunkan status loading (tanpa setState sinkron di dalam effect).
-  const [suggestionsIndustryId, setSuggestionsIndustryId] = useState('');
-  const suggestionsLoading =
-    industryId !== '' && suggestionsIndustryId !== industryId;
+  // Bidang usaha yang baru dibuat lewat form inline. Sengaja TIDAK
+  // dimasukkan ke daftar `industries` supaya tidak muncul sebagai
+  // pilihan dropdown — tapi tetap dipakai saat membuat workspace.
+  const [customIndustry, setCustomIndustry] = useState<Industry | null>(null);
 
   const alreadyOwns = workspaces.some((w) => w.is_owner);
   const selectedIndustry = industries.find((i) => i.id === industryId) ?? null;
+  // "Lainnya" = pemicu form bidang usaha baru (otomatis terbuka).
+  const isOtherIndustry =
+    selectedIndustry?.name.trim().toLowerCase() === 'lainnya';
+  // Bidang usaha yang dipakai saat submit: yang baru dibuat (bila
+  // ada), kalau tidak yang dipilih di dropdown.
+  const effectiveIndustryId = customIndustry?.id ?? industryId;
 
   // Form buat workspace hanya dibuka lewat tombol, dan hanya bila
   // user belum memiliki workspace (batas backend: satu per akun).
@@ -107,33 +108,17 @@ export function WorkspacePage({
     };
   }, []);
 
-  useEffect(() => {
-    if (!industryId) {
-      return;
-    }
-    let cancelled = false;
-    api
-      .getProjectSuggestions(industryId)
-      .then((items) => {
-        if (!cancelled) {
-          setSuggestions(items);
-          setSuggestionsIndustryId(industryId);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSuggestions([]);
-          setSuggestionsIndustryId(industryId);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [industryId]);
-
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !industryId || creating || alreadyOwns) {
+    // "Lainnya" saja belum cukup: user harus menyimpan dulu bidang
+    // usaha barunya lewat form inline, baru workspace bisa dibuat.
+    if (
+      !name.trim() ||
+      !effectiveIndustryId ||
+      creating ||
+      alreadyOwns ||
+      (isOtherIndustry && !customIndustry)
+    ) {
       return;
     }
     setCreating(true);
@@ -141,7 +126,7 @@ export function WorkspacePage({
     try {
       const created = await api.createWorkspace({
         name: name.trim(),
-        industry_id: industryId,
+        industry_id: effectiveIndustryId,
       });
       onWorkspaceCreated(created);
       setName('');
@@ -167,8 +152,9 @@ export function WorkspacePage({
         name: newIndustryName.trim(),
         description: newIndustryDescription.trim() || undefined,
       });
-      setIndustries((prev) => [...prev, created]);
-      setIndustryId(created.id);
+      // Dipakai untuk workspace ini, tapi tidak ditambahkan ke
+      // pilihan dropdown.
+      setCustomIndustry(created);
       setNewIndustryName('');
       setNewIndustryDescription('');
       setShowNewIndustry(false);
@@ -250,96 +236,130 @@ export function WorkspacePage({
               }
             />
           </label>
-          <label className={fieldClass}>
-            <span className={fieldLabelClass}>Bidang usaha</span>
-            <select
-              className={inputClass}
-              value={industryId}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                const next = e.target.value;
-                setIndustryId(next);
-                if (!next) {
-                  setSuggestions([]);
-                }
-              }}
-            >
-              <option value="">
-                {industriesLoading
-                  ? 'Memuat bidang usaha...'
-                  : 'Pilih bidang usaha'}
-              </option>
-              {industries.map((ind) => (
-                <option key={ind.id} value={ind.id}>
-                  {ind.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {industriesError && (
-            <p className="text-mk-red font-bold">{industriesError}</p>
-          )}
-          {!showNewIndustry ? (
-            <span>
-              <button
-                type="button"
-                className={btnClass}
-                onClick={() => setShowNewIndustry(true)}
-              >
-                + Bidang usaha baru
-              </button>
-            </span>
+          {customIndustry ? (
+            <div className={fieldClass}>
+              <span className={fieldLabelClass}>Bidang usaha</span>
+              <span className="flex items-center gap-3 flex-wrap">
+                <strong>{customIndustry.name}</strong>
+                <button
+                  type="button"
+                  className={btnClass}
+                  onClick={() => {
+                    setCustomIndustry(null);
+                    setIndustryId('');
+                  }}
+                >
+                  Ganti
+                </button>
+              </span>
+            </div>
           ) : (
-            <span className="flex gap-3 items-end flex-wrap">
+            <>
               <label className={fieldClass}>
-                <span className={fieldLabelClass}>Nama bidang usaha baru</span>
-                <input
+                <span className={fieldLabelClass}>Bidang usaha</span>
+                <select
                   className={inputClass}
-                  value={newIndustryName}
-                  maxLength={100}
-                  placeholder="cth. Rumah Makan"
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setNewIndustryName(e.target.value)
+                  value={industryId}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setIndustryId(e.target.value)
                   }
-                />
+                >
+                  <option value="">
+                    {industriesLoading
+                      ? 'Memuat bidang usaha...'
+                      : 'Pilih bidang usaha'}
+                  </option>
+                  {industries.map((ind) => (
+                    <option key={ind.id} value={ind.id}>
+                      {ind.name}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label className={fieldClass}>
-                <span className={fieldLabelClass}>Deskripsi (opsional)</span>
-                <input
-                  className={inputClass}
-                  value={newIndustryDescription}
-                  maxLength={500}
-                  placeholder="Deskripsi singkat"
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setNewIndustryDescription(e.target.value)
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                className={btnBlueClass}
-                disabled={creatingIndustry || !newIndustryName.trim()}
-                onClick={submitNewIndustry}
-              >
-                {creatingIndustry ? 'Menyimpan...' : 'Simpan bidang usaha'}
-              </button>
-              <button
-                type="button"
-                className={btnClass}
-                onClick={() => setShowNewIndustry(false)}
-              >
-                Batal
-              </button>
-            </span>
-          )}
-          {industryError && (
-            <p className="text-mk-red font-bold">{industryError}</p>
+              {industriesError && (
+                <p className="text-mk-red font-bold">{industriesError}</p>
+              )}
+              {showNewIndustry || isOtherIndustry ? (
+                <span className="flex gap-3 items-end flex-wrap">
+                  <label className={fieldClass}>
+                    <span className={fieldLabelClass}>
+                      Nama bidang usaha baru
+                    </span>
+                    <input
+                      className={inputClass}
+                      value={newIndustryName}
+                      maxLength={100}
+                      placeholder="cth. Rumah Makan"
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setNewIndustryName(e.target.value)
+                      }
+                    />
+                  </label>
+                  <label className={fieldClass}>
+                    <span className={fieldLabelClass}>
+                      Deskripsi (opsional)
+                    </span>
+                    <input
+                      className={inputClass}
+                      value={newIndustryDescription}
+                      maxLength={500}
+                      placeholder="Deskripsi singkat"
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setNewIndustryDescription(e.target.value)
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={btnBlueClass}
+                    disabled={creatingIndustry || !newIndustryName.trim()}
+                    onClick={submitNewIndustry}
+                  >
+                    {creatingIndustry
+                      ? 'Menyimpan...'
+                      : 'Simpan bidang usaha'}
+                  </button>
+                  <button
+                    type="button"
+                    className={btnClass}
+                    onClick={() => {
+                      setShowNewIndustry(false);
+                      // Dibuka otomatis karena "Lainnya": batal berarti
+                      // kembali ke "Pilih bidang usaha".
+                      if (isOtherIndustry) {
+                        setIndustryId('');
+                      }
+                    }}
+                  >
+                    Batal
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  <button
+                    type="button"
+                    className={btnClass}
+                    onClick={() => setShowNewIndustry(true)}
+                  >
+                    + Bidang usaha baru
+                  </button>
+                </span>
+              )}
+              {industryError && (
+                <p className="text-mk-red font-bold">{industryError}</p>
+              )}
+            </>
           )}
           <span className="flex gap-2 flex-wrap">
             <button
               type="submit"
               className={btnYellowClass}
               disabled={
-                creating || alreadyOwns || !name.trim() || !industryId
+                creating ||
+                alreadyOwns ||
+                !name.trim() ||
+                !effectiveIndustryId ||
+                (isOtherIndustry && !customIndustry)
               }
             >
               {creating ? 'Membuat...' : 'Buat Workspace'}
@@ -357,41 +377,6 @@ export function WorkspacePage({
           )}
         </form>
         </section>
-      )}
-
-      {canCreate && showForm && (
-        <section>
-          <h2 className={sectionTitleClass}>Saran Proyek</h2>
-          {!selectedIndustry ? (
-            <p className={mutedClass}>
-              Pilih bidang usaha di atas untuk melihat saran proyek dari AmbaDo.
-            </p>
-          ) : suggestionsLoading ? (
-            <p className={mutedClass}>Memuat saran proyek...</p>
-          ) : suggestions.length === 0 ? (
-            <p className={mutedClass}>
-              Belum ada saran proyek untuk bidang usaha{' '}
-              {selectedIndustry.name}.
-            </p>
-          ) : (
-            <>
-              <p className={sectionLabelClass}>
-                Saran proyek untuk bidang usaha {selectedIndustry.name} — bisa
-                dipilih saat membuat proyek:
-              </p>
-              <div className={grid2Class}>
-                {suggestions.map((s) => (
-                  <div className={cardClass} key={s.id}>
-                    <h3 className={`${sectionTitleClass} m-0`}>{s.name}</h3>
-                    {s.description && (
-                      <p className={mutedClass}>{s.description}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          </section>
       )}
     </div>
   );
