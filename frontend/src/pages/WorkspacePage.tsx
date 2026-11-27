@@ -29,8 +29,11 @@ import {
  * - Daftar workspace yang diikuti user (GET /workspaces) + pilih aktif.
  * - Buat workspace (POST /workspaces): nama + bidang usaha dari
  *   GET /industries. Backend membatasi satu workspace yang dimiliki
- *   per akun, jadi form pembuatan dinonaktifkan bila user sudah
- *   menjadi pemilik satu workspace.
+ *   per akun — jadi card BUAT WORKSPACE hanya muncul bila user belum
+ *   memiliki workspace, dibuka lewat tombol "+ Buat Workspace", dan
+ *   hilang lagi setelah workspace berhasil dibuat (sama seperti form
+ *   Tambah Tugas). Saran proyek di bawahnya ikut tampil hanya saat
+ *   form pembuatan sedang terbuka.
  * - Bidang usaha baru bisa ditambahkan inline (POST /industries).
  * - Saran proyek sistem untuk bidang usaha yang dipilih
  *   (GET /industries/:id/project-suggestions) — dipakai saat membuat
@@ -73,6 +76,11 @@ export function WorkspacePage({
 
   const alreadyOwns = workspaces.some((w) => w.is_owner);
   const selectedIndustry = industries.find((i) => i.id === industryId) ?? null;
+
+  // Form buat workspace hanya dibuka lewat tombol, dan hanya bila
+  // user belum memiliki workspace (batas backend: satu per akun).
+  const [showForm, setShowForm] = useState(false);
+  const canCreate = !alreadyOwns;
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +145,9 @@ export function WorkspacePage({
       });
       onWorkspaceCreated(created);
       setName('');
+      // Workspace berhasil dibuat: daftar tampil, form pembuatan
+      // (dan saran proyek di bawahnya) hilang.
+      setShowForm(false);
     } catch (err: unknown) {
       setCreateError(pesanErrorApi(err));
     } finally {
@@ -173,10 +184,7 @@ export function WorkspacePage({
       <section>
         <h2 className={sectionTitleClass}>Workspace Saya</h2>
         {workspaces.length === 0 ? (
-          <p className={mutedClass}>
-            Belum ada workspace. Buat workspace pertamamu di bawah — kamu
-            otomatis menjadi Owner-nya.
-          </p>
+          <p className={mutedClass}>Belum ada workspace.</p>
         ) : (
           <div className={grid2Class}>
             {workspaces.map((w) => {
@@ -208,23 +216,26 @@ export function WorkspacePage({
             })}
           </div>
         )}
+        {canCreate && !showForm && (
+          <span className="mt-3">
+            <button
+              type="button"
+              className={btnYellowClass}
+              onClick={() => setShowForm(true)}
+            >
+              + Buat Workspace
+            </button>
+          </span>
+        )}
       </section>
 
-      <section className={cardClass}>
-        <h2 className={sectionTitleClass}>Buat Workspace</h2>
-        {alreadyOwns ? (
-          <p className={mutedClass}>
-            Kamu sudah memiliki satu workspace — itu batas dari backend (satu
-            workspace per akun). Kamu masih bisa bergabung ke workspace lain
-            lewat undangan. Pilih bidang usaha di bawah untuk melihat saran
-            proyeknya.
-          </p>
-        ) : (
+      {canCreate && showForm && (
+        <section className={cardClass}>
+          <h2 className={sectionTitleClass}>Buat Workspace</h2>
           <p className={mutedClass}>
             Satu akun hanya bisa memiliki satu workspace. Setelah dibuat, kamu
             menjadi Owner workspace tersebut.
           </p>
-        )}
         <form onSubmit={submitCreate} className="flex flex-col gap-3 mt-3">
           <label className={fieldClass}>
             <span className={fieldLabelClass}>Nama workspace</span>
@@ -323,7 +334,7 @@ export function WorkspacePage({
           {industryError && (
             <p className="text-mk-red font-bold">{industryError}</p>
           )}
-          <span>
+          <span className="flex gap-2 flex-wrap">
             <button
               type="submit"
               className={btnYellowClass}
@@ -333,45 +344,55 @@ export function WorkspacePage({
             >
               {creating ? 'Membuat...' : 'Buat Workspace'}
             </button>
+            <button
+              type="button"
+              className={btnClass}
+              onClick={() => setShowForm(false)}
+            >
+              Batal
+            </button>
           </span>
           {createError && (
             <p className="text-mk-red font-bold">{createError}</p>
           )}
         </form>
-      </section>
+        </section>
+      )}
 
-      <section>
-        <h2 className={sectionTitleClass}>Saran Proyek</h2>
-        {!selectedIndustry ? (
-          <p className={mutedClass}>
-            Pilih bidang usaha di atas untuk melihat saran proyek dari AmbaDo.
-          </p>
-        ) : suggestionsLoading ? (
-          <p className={mutedClass}>Memuat saran proyek...</p>
-        ) : suggestions.length === 0 ? (
-          <p className={mutedClass}>
-            Belum ada saran proyek untuk bidang usaha{' '}
-            {selectedIndustry.name}.
-          </p>
-        ) : (
-          <>
-            <p className={sectionLabelClass}>
-              Saran proyek untuk bidang usaha {selectedIndustry.name} — bisa
-              dipilih saat membuat proyek:
+      {canCreate && showForm && (
+        <section>
+          <h2 className={sectionTitleClass}>Saran Proyek</h2>
+          {!selectedIndustry ? (
+            <p className={mutedClass}>
+              Pilih bidang usaha di atas untuk melihat saran proyek dari AmbaDo.
             </p>
-            <div className={grid2Class}>
-              {suggestions.map((s) => (
-                <div className={cardClass} key={s.id}>
-                  <h3 className={`${sectionTitleClass} m-0`}>{s.name}</h3>
-                  {s.description && (
-                    <p className={mutedClass}>{s.description}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+          ) : suggestionsLoading ? (
+            <p className={mutedClass}>Memuat saran proyek...</p>
+          ) : suggestions.length === 0 ? (
+            <p className={mutedClass}>
+              Belum ada saran proyek untuk bidang usaha{' '}
+              {selectedIndustry.name}.
+            </p>
+          ) : (
+            <>
+              <p className={sectionLabelClass}>
+                Saran proyek untuk bidang usaha {selectedIndustry.name} — bisa
+                dipilih saat membuat proyek:
+              </p>
+              <div className={grid2Class}>
+                {suggestions.map((s) => (
+                  <div className={cardClass} key={s.id}>
+                    <h3 className={`${sectionTitleClass} m-0`}>{s.name}</h3>
+                    {s.description && (
+                      <p className={mutedClass}>{s.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          </section>
+      )}
     </div>
   );
 }
