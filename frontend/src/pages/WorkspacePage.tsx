@@ -30,11 +30,12 @@ import {
  *   memiliki workspace, dibuka lewat tombol "+ Buat Workspace", dan
  *   hilang lagi setelah workspace berhasil dibuat (sama seperti form
  *   Tambah Tugas).
- * - Bidang usaha baru bisa ditambahkan inline (POST /industries).
- *   Memilih "Lainnya" di dropdown otomatis membuka form bidang
- *   usaha baru di bawahnya; bidang usaha yang baru dibuat dipakai
- *   untuk workspace ini tapi TIDAK ditambahkan ke pilihan dropdown
- *   (dropdown hanya berisi bidang usaha sistem).
+ * - Bidang usaha baru bisa ditambahkan inline (POST /industries) —
+ *   satu-satunya jalannya lewat memilih "Lainnya" di dropdown,
+ *   yang otomatis membuka form bidang usaha baru di bawahnya.
+ *   Bidang usaha yang baru dibuat dipakai untuk workspace ini
+ *   tapi TIDAK ditambahkan ke pilihan dropdown (dropdown hanya
+ *   berisi bidang usaha sistem).
  */
 export function WorkspacePage({
   workspaces,
@@ -58,7 +59,6 @@ export function WorkspacePage({
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const [showNewIndustry, setShowNewIndustry] = useState(false);
   const [newIndustryName, setNewIndustryName] = useState('');
   const [newIndustryDescription, setNewIndustryDescription] = useState('');
   const [creatingIndustry, setCreatingIndustry] = useState(false);
@@ -157,7 +157,6 @@ export function WorkspacePage({
       setCustomIndustry(created);
       setNewIndustryName('');
       setNewIndustryDescription('');
-      setShowNewIndustry(false);
     } catch (err: unknown) {
       setIndustryError(pesanErrorApi(err));
     } finally {
@@ -279,7 +278,7 @@ export function WorkspacePage({
               {industriesError && (
                 <p className="text-mk-red font-bold">{industriesError}</p>
               )}
-              {showNewIndustry || isOtherIndustry ? (
+              {isOtherIndustry && (
                 <span className="flex gap-3 items-end flex-wrap">
                   <label className={fieldClass}>
                     <span className={fieldLabelClass}>
@@ -322,26 +321,10 @@ export function WorkspacePage({
                   <button
                     type="button"
                     className={btnClass}
-                    onClick={() => {
-                      setShowNewIndustry(false);
-                      // Dibuka otomatis karena "Lainnya": batal berarti
-                      // kembali ke "Pilih bidang usaha".
-                      if (isOtherIndustry) {
-                        setIndustryId('');
-                      }
-                    }}
+                    // Batal berarti kembali ke "Pilih bidang usaha".
+                    onClick={() => setIndustryId('')}
                   >
                     Batal
-                  </button>
-                </span>
-              ) : (
-                <span>
-                  <button
-                    type="button"
-                    className={btnClass}
-                    onClick={() => setShowNewIndustry(true)}
-                  >
-                    + Bidang usaha baru
                   </button>
                 </span>
               )}
