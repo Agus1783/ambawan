@@ -182,15 +182,15 @@ export function WorkspacePage({
   return (
     <div className={stackClass}>
       <section>
-        <h2 className={sectionTitleClass}>Workspace Saya</h2>
+        <h2 className={`${sectionTitleClass} text-center`}>Workspace Saya</h2>
         {workspaces.length === 0 ? (
-          <p className={mutedClass}>Belum ada workspace.</p>
+          <p className={`${mutedClass} text-center`}>Belum ada workspace.</p>
         ) : (
-          <div className={grid2Class}>
+          <div className="flex flex-wrap justify-center gap-5">
             {workspaces.map((w) => {
               const isActive = activeWorkspace?.id === w.id;
               return (
-                <div className={cardClass} key={w.id}>
+                <div className={`${cardClass} w-full max-w-md`} key={w.id}>
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <h3 className={`${sectionTitleClass} m-0`}>{w.name}</h3>
                     {isActive && <Chip className="bg-mk-yellow">Aktif</Chip>}
@@ -217,7 +217,7 @@ export function WorkspacePage({
           </div>
         )}
         {canCreate && !showForm && (
-          <span className="mt-3">
+          <span className="mt-3 flex justify-center">
             <button
               type="button"
               className={btnYellowClass}
