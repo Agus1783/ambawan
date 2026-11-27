@@ -131,7 +131,7 @@ export function WorkspacePage({
       onWorkspaceCreated(created);
       setName('');
       // Workspace berhasil dibuat: daftar tampil, form pembuatan
-      // (dan saran proyek di bawahnya) hilang.
+      // hilang.
       setShowForm(false);
     } catch (err: unknown) {
       setCreateError(pesanErrorApi(err));
